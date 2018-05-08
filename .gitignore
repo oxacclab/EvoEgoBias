@@ -1,0 +1,6 @@
+*.tmp
+**/auth/**
+*.asv
+*.Rhistory
+*.RData
+.Rproj.user

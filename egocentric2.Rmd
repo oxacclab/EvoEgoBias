@@ -1,0 +1,442 @@
+---
+title: "Egocentric Discounting Evolution"
+author: "Matt Jaquiery"
+date: "22 April 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r libraries}
+library(tidyverse)
+library(igraph)
+library(parallel)
+library(snow)
+```
+
+## Egocentric discounting
+
+Egocentric discounting refers to the tendency of individuals receiving advice to assign less weight to that advice than would be expected if they were following a normative 'averaging' strategy. The averaging strategy predicts that an individual ought to weigh the advice of a single advisor equally to their own, and it can be demonstrated that for many kinds of decision task this strategy is optimal (or at least an improvement over systematic assymetric weighting).
+
+Given its disadvantages, egocentric discounting stands in need of explanation: why should this sub-optimal information gathering strategy persist? Several possible explanations can be suggested:
+
+* Egocentric discounting is an artefact of other necessary or useful processes (spandrel)
+
+* Egocentric discounting may preserve variability and be retained for its capacity to avoid overexploitation and to explore new solutions
+
+* Egocentric discounting may protect against predictability/vulnerability to mal-intentioned advice
+
+The first explanation is difficult to test. The other two will be considered here. First, however, we try to get a sense of how much of an efficency cost is imposed by egocentric discounting. Discounting typically means that, in a two-person situation, the advisee apportions 20-40% weight to the advice of the advisor, and the remaining 60-80% weight to their own initial opinion. Where advice comes from a group of advisors, the weight accorded tends to increase with the size of the group, though it is still stacked such that the group's collective opinion is weighed less heavily than the advisee's initial opinion.
+
+## Model structure
+
+A typical advice-taking task is an estimation problem wherein a decision-maker is tasked with guessing some value. The decision-maker's guess will contain the correct value plus some error, typically drawn from a normal distribution (with a variance inversely equal to the decision-maker's sensitivity). An advisor's advice will take the same form, and, on average, the mean of the decision-maker's estimate and the advisor's estimate will be the best approximation of the true answer. 
+
+The agents in this model operate in this fashion, and act both as advisors and decision-makers (indeed the advice and the decision are the same). Advice disseminates over a network graph specifying the ties between agents. During the course of their lives, agents make a series of decision for which the answer varies, and after they have made those decisions the agents undergo an evolutionary process which probabalistically selects the better-performing agents for reproduction.
+
+Environment properties:
+* Discrimination vs Estimation task
+    * Discrimination task
+        * Answers are discrete
+        * Advice is discrete
+        * Either or both can be graded by confidence
+    * Estimation task
+        * Answers are necessarily continuous
+        * Confidence, if included, is on a different scale to answer
+* Decisions per generation
+* Reproduction method and rules
+    * A/sexual reproduction
+    * Probabilistic vs determinisitic selection
+    * Fitness function
+        * The inverse of the total error accumulated across decisions made during individual's lifetime
+    * Which properties are inheritable
+* Number of agents
+
+Connectivity:
+* Number of advisors per decision-maker
+    * Fixed or allowed to vary?
+        * Gregariousness would be an interesting property to allow to vary; presumably there's a trade-off between number of advisors recruited and ability to estimate the accuracy of those advisors under some conditions
+    * Also number of these consulted on each decision
+    * Where multiple advisors are encountered, the scaling of bias by advisor count becomes important
+* Static vs dynamic networks
+* Estimates of advisors' accuracy
+    * Encoded as link strength (discounting applied on top)
+
+Agent (inheritable) properties:  
+* Egocentric bias
+    * Agents differ in how heavily they weigh the advice of others
+* Sensitivity
+    * Agents differ in their ability to perform the task
+    * Sensitivity is the narrowness of the gaussian distribution from which error is drawn for each decision
+* Network ties
+    * Children may be more likely to tie with parents' ties...
+
+Possible extensions:
+* Metacognitive accuracy
+    * Agents may differ on how well confidence tracks accuracy
+* Advice seeking
+    * Agents may preferentially choose to get advice from high vs low weighted sources
+* Advice != Decision
+    * Agents may give advice on decisions they do not face (or give different advice to their decision for themselves), and may put in less effort (perform more poorly) when they do so.
+* Objective feedback
+    * On some/all decisions
+    
+## Model 1: Efficiency cost of Egocentric Discounting 
+
+### Description
+
+In this model we look at a population of decision makers whose egocentric bias is the only inherited property. Reproduction is done asexually (i.e. the new generation is a clone), and performed probabalistically by fitness (so on average more fit individuals will leave behind more clones). A small chance of mutation (randomises egocentric bias) is present at each chance for cloning. 
+
+```{r evolutionaryModel}
+library(tidyverse)
+library(foreach)
+# library(doSNOW)
+# cores <- makeCluster(7, type='SOCK')
+# registerDoSNOW(cores) # register CPU cores for parallel processing
+
+getDegree <- function(i, aMatrix) {
+  length(which(aMatrix[i,]>0))
+}
+# clamp x to be between minVal and maxVal
+clamp <- function(x, minVal, maxVal) {
+  return(max(minVal, min(maxVal, x)))
+}
+
+agentCount <- 150
+agentDegree <- 5
+decisionCount <- 200
+generationCount <- 200
+mutationChance <- 0.01
+learnRate <- 0.00
+initialConnectionStrength <- function() {
+  return(1)
+}
+# Define agents
+makeAgents <- function(previousGeneration = NULL, n = NULL, generation = 0, degreeCount = 5) {
+  if(is.null(n)) {
+    if(is.null(previousGeneration))
+      stop('makeAgents: neither previousGeneration nor n supplied; cannot determine population size')
+    n = dim(previousGeneration)[1]
+  }
+  agents <- data.frame(id = (generation*n+1):(generation*n+n),
+                       genId = 1:n,
+                       generation = rep(generation, n),
+                       egoBias = runif(n), 
+                       sensitivity = runif(n, 0, 4), 
+                       successes = rep(0, n))
+  # Inherit egoBias if there's a previous generation
+  if(!is.null(previousGeneration))
+    agents$egoBias <- previousGeneration$egoBias
+  agents$egoBias[which(is.na(agents$egoBias))] <- runif(1)
+  # Connect agents together
+  ties <- matrix(0, nrow = n, ncol = n)
+  for(a in 1:n) {
+    while(getDegree(a, ties) < degreeCount) {
+      t <- sample(1:n, 1)
+      #print(paste0('a = ',a, '; t=',t,'; degree=',getDegree(t,ties)))
+      if(t==a | getDegree(t, ties) >= (degreeCount * 1.5))
+        next()
+      ties[a,t] <- initialConnectionStrength()
+      ties[t,a] <- initialConnectionStrength()
+    }
+  }
+  return(list(agents = agents, ties = ties))
+}
+
+tStart <- Sys.time()
+tmp <- makeAgents(n = agentCount, degreeCount = agentDegree)
+agents <- tmp$agents
+ties <- tmp$ties
+
+for(g in 1:generationCount) {
+  print(paste0('Generation ',g,'. Mean egoBias = ',round(mean(agents$egoBias),3)))
+  # Make decisions
+  for(d in 1:decisionCount) {
+    # Correct answer (same for all agents)
+    worldState <- runif(1)
+    answer <- worldState > .5
+    # Precache agents pre-advice decisions (i.e. their advice to other agents)
+    tmp <- agents[which(agents$generation == g-1),]
+    tmp$decision <- vector(length = dim(tmp)[1])
+    for(a in 1:dim(tmp)[1]) {
+     tmp$decision[a] <- worldState + rnorm(1, mean = worldState, sd = tmp$sensitivity[a])
+     tmp$decision[a] <- clamp(tmp$decision[a],0,1)
+    }
+    tmp$advisor <- vector(length = dim(tmp)[1])
+    tmp$adjustment <- tmp$advisor
+    for(a in 1:length(tmp$genId)) {
+      myAnswer <- tmp$decision[a]
+      if(sum(ties[a,]>0)) {
+        tmp$advisor[a] <- sample(which(ties[a,]!=0),1)
+        # Advice is either wholly negative or wholly positive (i.e. not graded)
+        advice <- ifelse(tmp$decision[tmp$advisor[a]] > .5, .5, -.5)
+        # Advice is weighted by opinion of the advisor
+        advice <- advice * ties[a,tmp$advisor[a]]
+        # And then combined with own initial decision via egocentric bias
+        myFinalAnswer <- (tmp$decision[a] * tmp$egoBias[a]) + ((1-tmp$egoBias[a]) * advice)
+        myFinalAnswer <- clamp(myFinalAnswer, 0, 1)
+        # Connections are updated after advice taking on the basis of agreement between initial decision and advice
+        confidence <- abs(myAnswer - 0.5)
+        if((myAnswer > .5 & advice > 0) 
+           | (myAnswer < .5 & advice < 0)) 
+          # Agreement, boost connection by confidence
+          tmp$adjustment[a] <- ties[a, tmp$advisor[a]] + (confidence * learnRate)
+        else
+          tmp$adjustment[a] <- ties[a, tmp$advisor[a]] - (confidence * learnRate)
+        tmp$adjustment[a] <- clamp(tmp$adjustment[a], 0, 1)
+      } else {
+        # No advisors connected
+        myFinalAnswer <- myAnswer
+        tmp$adjustment[a] <- 0
+        tmp$advisor[a] <- a
+      }
+      # Tally the decision result
+      if((myFinalAnswer > .5) == answer)
+        tmp$successes[a] <- tmp$successes[a] + 1
+    }
+    # update agents
+    agents$successes[which(agents$generation==g-1)] <- tmp$successes
+    for(a in 1:length(tmp$genId))
+      ties[a,tmp$advisor[a]] <- tmp$adjustment[a]
+  }
+  if(g==generationCount)
+    next()
+  # Evolve
+  tmp <- agents[which(agents$generation == g-1),]
+  tickets <- vector(length = sum(tmp$successes)) # each success buys you a ticket in the draw
+  tmp <- tmp[order(tmp$successes, decreasing = T),]
+  i <- 0
+  for(a in 1:dim(tmp)[1]) {
+    tickets[(i+1):(i+1+tmp$successes[a])] <- a
+    i <- i + 1 + tmp$successes[a]
+  }
+  winners <- sample(tickets, agentCount, replace = T)
+  # The winners clone their egocentric discounting
+  winners <- tmp[winners,]
+  # Some winners mutate
+  winners$egoBias[which(runif(dim(winners)[1]) < mutationChance)] <- NA
+  tmp <- makeAgents(previousGeneration = winners, generation = g, degreeCount = agentDegree)
+  agents <- rbind(agents, tmp$agents)
+  ties <- tmp$ties
+}
+
+tEnd <- Sys.time()
+tElapsed <- as.numeric(format(tEnd,"%s")) - as.numeric(format(tStart,"%s"))
+print(paste0('Elapsed time: ',tElapsed,'s'))
+# stopCluster(cores)
+load("model1.RData")
+modelData <- list(agentCount = agentCount,
+                  agentDegree = agentDegree,
+                  decisionCount = decisionCount,
+                  generationCount = generationCount,
+                  mutationChance = mutationChance,
+                  learnRate = learnRate,
+                  initialConnectionStrength = initialConnectionStrength,
+                  agents = agents,
+                  duration = tElapsed)
+model1 <- c(model1, list(modelData))
+save(model1, file = 'model1.RData')
+
+ggplot(data = agents, aes(x = generation, y = egoBias)) + 
+  geom_point(aes(color = as.factor(genId))) +
+  geom_smooth() +
+  annotate(geom = 'text', label = paste('Mutation rate =',mutationChance),
+           x = 25, y = 1.05) +
+  theme_light() +
+  theme(legend.position = 'none')
+
+# Summarize the regression coefficient of egoBias predicting successess to check if the models work
+rm('model1Summary')
+for(model in model1) {
+  tmp <- lm(successes ~ egoBias, data = model$agents[which(as.numeric(model$agents$generation)<201),])
+  tmpDF <- as.data.frame(model[1:6,9]) # model properties
+  tmpDF <- cbind(tmpDF, data.frame(intercept = tmp$coefficients[1], egoBiasCoef = tmp$coefficients[2]))
+  if(!exists('model1Summary'))
+    model1Summary <- tmpDF
+  else
+    model1Summary <- rbind(model1Summary, tmpDF)
+}
+model1Summary
+
+```
+What happens if we allow sensitivity to inherit, too? Theoretically sensitivity could reduce the need for an optimal (0.5) egocentric bias because if one is better than one's peers, discounting advice becomes optimal.
+```{r model1.definition}
+# Everything goes in a hyperthreading function because otherwise the cores can't read the functions.
+cores <- makeCluster(detectCores()-2, type='SOCK')
+egoWeight <- seq(0,0.95,0.05) # egocentric discounting parameter
+rawResults <- clusterApply(cores,
+                           egoWeight,
+                        function(x) {
+                          # We want to run several simulations at each level of
+                          # the egocentric bias to work out what the penalty is
+                          egoBias <- x
+                          reps <- 30
+                          agentCount <- 150 # Dunbar's number
+                          degreeCount <- 7  # somewhat arbitrary
+  
+                          ## Agents
+                          generateAgents <- function(agentCount) {
+                            agents <- data.frame(id=1:agentCount,
+                                                 error=rnorm(agentCount), # agent's personal innacuracy
+                                                 opinion=FALSE,           # agent's initial guess (also advice)
+                                                 decision=FALSE           # agent's post-advice decision
+                                                 ) 
+                            return(agents)
+                          }
+                          
+                          ## Agent connectivity
+                          connectAgents <- function(degreeCount, agents) {
+                            agentMatrix <- matrix(data = 0, nrow = agentCount, ncol = agentCount)
+                            rownames(agentMatrix) <- agents$id
+                            colnames(agentMatrix) <- agents$id
+                            for(i in 1:length(agents$id)) {
+                              id <- agents$id[i]
+                              d <- degreeCount - sum(agentMatrix[id,])
+                              if(d <= 0)
+                                next
+                              for(j in 1:d) {
+                                target <- sample(1:agentCount,1)
+                                if(target==id)
+                                  next
+                                # don't worry about overwriting existing connections
+                                agentMatrix[id,target] <- 1
+                                agentMatrix[target,id] <- 1
+                              }
+                            }  
+                            return(agentMatrix)
+                          }
+                          
+                          ## Agent evolution
+                          replaceAgents <- function(agents, agentMatrix, degreeCount, n = 5) {
+                            worst <- order(abs(agents$decision), decreasing = T)
+                            for(i in worst[1:n]) {
+                              # replace agent with a new agent with random(?) error and new connections
+                              err <- rnorm(1)
+                              agents[which(agents$id==i),] <- data.frame(id=i, error=err, opinon=err, decision=err)
+                              agentMatrix[i,] <- 0
+                              agentMatrix[,i] <- 0
+                              for(t in sample(agents$id[which(agents$id!=i)],degreeCount)) {
+                                # we are changing the degree of other agents through this process - is that important?
+                                agentMatrix[i,t] <- 1
+                                agentMatrix[t,i] <- 1
+                              }
+                            }
+                            return(list(agents=agents, agentMatrix=agentMatrix))
+                          }
+                          
+                          ## Running the simulation
+                          # Each simulation run uses a static agents dataframe and ties matrix, 
+                          # and returns the number of ticks run
+                          sim <- function (egoBias, agents, ties, 
+                                           maxTicks = 15000, minimumSS = 0.25,
+                                           ticksPerGeneration = 100) {
+                            tick <- 0
+                            agents$decision <- agents$error # initialize decision
+                            agents$opinion <- agents$error
+                            # Stop when the combined sum of squares decision is below the minimumSS value
+                            while(sum(agents$decision^2) > minimumSS & tick < maxTicks) {
+                              # Agents get advice
+                              for(i in 1:length(agents$id)) {
+                                id <- agents$id[i]
+                                advice <- 0
+                                if(sum(ties[id,]) <= 0) {
+                                  if(tick==0)
+                                    warning(paste0("Agent #",id," has no advisors."))
+                                  next # no advisors
+                                }
+                                for(advisor in which(ties[id,]==1)) {
+                                  advice <- advice + agents$opinion[which(agents$id==advisor)]
+                                }
+                                advice <- advice / sum(ties[id,]) # Average advice
+                                # Agents make decision by weighing their own opinion vs advice
+                                agents$decision[i] <- egoBias * agents$opinion[i] + (1-egoBias) * advice
+                              }
+                              # The settled decisions become the starting opinions for next time
+                              agents$opinion <- agents$decision
+                              # Evolve agents if required
+                              if(!is.null(ticksPerGeneration)
+                                 & tick %% ticksPerGeneration == 0) {
+                                newWorld <- replaceAgents(agents, ties, degreeCount)
+                                agents <- newWorld$agents
+                                ties <- newWorld$agentMatrix
+                              }
+                              tick <- tick + 1
+                            }
+                            return(tick)
+                          }
+                          
+                          ## Execution
+                          ticks <- vector(length=reps)
+                          out <- data.frame(egoWeight = egoBias)
+                          for(r in 1:reps) {
+                            agents <- generateAgents(agentCount)
+                            ties <- connectAgents(degreeCount, agents)
+                            out[paste0('ticks',r)] <- sim(egoBias, agents, ties)
+                            print(paste0('EgoWeight: ',egoBias,' - mean ticks = ',mean(ticks),' [',sd(ticks),']'))
+                          }
+                          return(out)
+                          })
+stopCluster(cores)
+
+result.backup <- rawResults
+#rawResults <- lapply(rawResults, function(x){x[which(x==15000)]=NA;return(x)})
+rm('results')
+cols <- which(grepl('tick', names(rawResults[[1]]), fixed = T))
+for(r in rawResults){
+  r$ticks <- mean(t(r[,cols]), na.rm = T)
+  r$ticks.sd <- sd(t(r[,cols]), na.rm = T)
+  r2 <- r[,c('egoWeight', 'ticks', 'ticks.sd')]
+  if(!exists('results')) 
+    results <- r2
+  else
+    results <- rbind(results, r2)
+}
+
+ggplot(results[1:dim(results)[1]-1,], aes(x = egoWeight, y = ticks)) + geom_point()
+```
+
+### Exploration
+
+### Discussion
+
+#### Limitations
+
+* Advice = decision for self. Literature suggests this isn't so.
+
+* The agents make the same decision repeatedly, with the optimum answer remaining the same.
+
+* Optimum answer is optimum for all agents.
+
+* All advisors are weighted equally.
+
+* Discounting is constant and does not vary between decision-makers.
+
+## Model 2: Preserving variability 
+
+### Description
+
+### Exploration
+
+### Discussion
+
+#### Limitations
+
+## Model 3: Resistance to exploitation 
+
+### Description
+
+### Exploration
+
+### Discussion
+
+#### Limitations
+
+## General Discussion
+
+## References
+
+### Citations for R packages
+```{r references}
+# Citations
+```
