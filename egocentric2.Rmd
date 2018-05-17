@@ -95,138 +95,135 @@ library(foreach)
 # cores <- makeCluster(7, type='SOCK')
 # registerDoSNOW(cores) # register CPU cores for parallel processing
 
-getDegree <- function(i, aMatrix) {
-  length(which(aMatrix[i,]>0))
-}
-# clamp x to be between minVal and maxVal
-clamp <- function(x, minVal, maxVal) {
-  return(max(minVal, min(maxVal, x)))
-}
-
-agentCount <- 150
-agentDegree <- 5
-decisionCount <- 200
-generationCount <- 200
-mutationChance <- 0.01
-learnRate <- 0.00
-initialConnectionStrength <- function() {
-  return(1)
-}
-# Define agents
-makeAgents <- function(previousGeneration = NULL, n = NULL, generation = 0, degreeCount = 5) {
-  if(is.null(n)) {
-    if(is.null(previousGeneration))
-      stop('makeAgents: neither previousGeneration nor n supplied; cannot determine population size')
-    n = dim(previousGeneration)[1]
+egoSim <- function(agentCount, 
+                   agentDegree, 
+                   decisionCount, 
+                   generationCount, 
+                   mutationChance, 
+                   learnRate = 0.00, 
+                   initialConnectionStrength = 1.00) {
+  # Utility functions 
+  getDegree <- function(i, aMatrix) {
+    length(which(aMatrix[i,]>0))
   }
-  agents <- data.frame(id = (generation*n+1):(generation*n+n),
-                       genId = 1:n,
-                       generation = rep(generation, n),
-                       egoBias = runif(n), 
-                       sensitivity = runif(n, 0, 4), 
-                       successes = rep(0, n))
-  # Inherit egoBias if there's a previous generation
-  if(!is.null(previousGeneration))
-    agents$egoBias <- previousGeneration$egoBias
-  agents$egoBias[which(is.na(agents$egoBias))] <- runif(1)
-  # Connect agents together
-  ties <- matrix(0, nrow = n, ncol = n)
-  for(a in 1:n) {
-    while(getDegree(a, ties) < degreeCount) {
-      t <- sample(1:n, 1)
-      #print(paste0('a = ',a, '; t=',t,'; degree=',getDegree(t,ties)))
-      if(t==a | getDegree(t, ties) >= (degreeCount * 1.5))
-        next()
-      ties[a,t] <- initialConnectionStrength()
-      ties[t,a] <- initialConnectionStrength()
-    }
+  # clamp x to be between minVal and maxVal
+  clamp <- function(x, minVal, maxVal) {
+    return(max(minVal, min(maxVal, x)))
   }
-  return(list(agents = agents, ties = ties))
-}
-
-tStart <- Sys.time()
-tmp <- makeAgents(n = agentCount, degreeCount = agentDegree)
-agents <- tmp$agents
-ties <- tmp$ties
-
-for(g in 1:generationCount) {
-  print(paste0('Generation ',g,'. Mean egoBias = ',round(mean(agents$egoBias),3)))
-  # Make decisions
-  for(d in 1:decisionCount) {
-    # Correct answer (same for all agents)
-    worldState <- runif(1)
-    answer <- worldState > .5
-    # Precache agents pre-advice decisions (i.e. their advice to other agents)
-    tmp <- agents[which(agents$generation == g-1),]
-    tmp$decision <- vector(length = dim(tmp)[1])
-    for(a in 1:dim(tmp)[1]) {
-     tmp$decision[a] <- worldState + rnorm(1, mean = worldState, sd = tmp$sensitivity[a])
-     tmp$decision[a] <- clamp(tmp$decision[a],0,1)
+  
+  # Define agents
+  makeAgents <- function(previousGeneration = NULL, n = NULL, generation = 0, degreeCount = 5) {
+    if(is.null(n)) {
+      if(is.null(previousGeneration))
+        stop('makeAgents: neither previousGeneration nor n supplied; cannot determine population size')
+      n = dim(previousGeneration)[1]
     }
-    tmp$advisor <- vector(length = dim(tmp)[1])
-    tmp$adjustment <- tmp$advisor
-    for(a in 1:length(tmp$genId)) {
-      myAnswer <- tmp$decision[a]
-      if(sum(ties[a,]>0)) {
-        tmp$advisor[a] <- sample(which(ties[a,]!=0),1)
-        # Advice is either wholly negative or wholly positive (i.e. not graded)
-        advice <- ifelse(tmp$decision[tmp$advisor[a]] > .5, .5, -.5)
-        # Advice is weighted by opinion of the advisor
-        advice <- advice * ties[a,tmp$advisor[a]]
-        # And then combined with own initial decision via egocentric bias
-        myFinalAnswer <- (tmp$decision[a] * tmp$egoBias[a]) + ((1-tmp$egoBias[a]) * advice)
-        myFinalAnswer <- clamp(myFinalAnswer, 0, 1)
-        # Connections are updated after advice taking on the basis of agreement between initial decision and advice
-        confidence <- abs(myAnswer - 0.5)
-        if((myAnswer > .5 & advice > 0) 
-           | (myAnswer < .5 & advice < 0)) 
-          # Agreement, boost connection by confidence
-          tmp$adjustment[a] <- ties[a, tmp$advisor[a]] + (confidence * learnRate)
-        else
-          tmp$adjustment[a] <- ties[a, tmp$advisor[a]] - (confidence * learnRate)
-        tmp$adjustment[a] <- clamp(tmp$adjustment[a], 0, 1)
-      } else {
-        # No advisors connected
-        myFinalAnswer <- myAnswer
-        tmp$adjustment[a] <- 0
-        tmp$advisor[a] <- a
+    agents <- data.frame(id = (generation*n+1):(generation*n+n),
+                         genId = 1:n,
+                         generation = rep(generation, n),
+                         egoBias = runif(n), 
+                         sensitivity = runif(n, 0, 1), 
+                         successes = rep(0, n))
+    # Inherit egoBias if there's a previous generation
+    if(!is.null(previousGeneration))
+      agents$egoBias <- previousGeneration$egoBias
+    agents$egoBias[which(is.na(agents$egoBias))] <- runif(1)
+    # Connect agents together
+    ties <- matrix(0, nrow = n, ncol = n)
+    for(a in 1:n) {
+      while(getDegree(a, ties) < degreeCount) {
+        t <- sample(1:n, 1)
+        #print(paste0('a = ',a, '; t=',t,'; degree=',getDegree(t,ties)))
+        if(t==a | getDegree(t, ties) >= (degreeCount * 1.5))
+          next()
+        ties[a,t] <- initialConnectionStrength()
+        ties[t,a] <- initialConnectionStrength()
       }
-      # Tally the decision result
-      if((myFinalAnswer > .5) == answer)
-        tmp$successes[a] <- tmp$successes[a] + 1
     }
-    # update agents
-    agents$successes[which(agents$generation==g-1)] <- tmp$successes
-    for(a in 1:length(tmp$genId))
-      ties[a,tmp$advisor[a]] <- tmp$adjustment[a]
+    return(list(agents = agents, ties = ties))
   }
-  if(g==generationCount)
-    next()
-  # Evolve
-  tmp <- agents[which(agents$generation == g-1),]
-  tickets <- vector(length = sum(tmp$successes)) # each success buys you a ticket in the draw
-  tmp <- tmp[order(tmp$successes, decreasing = T),]
-  i <- 0
-  for(a in 1:dim(tmp)[1]) {
-    tickets[(i+1):(i+1+tmp$successes[a])] <- a
-    i <- i + 1 + tmp$successes[a]
-  }
-  winners <- sample(tickets, agentCount, replace = T)
-  # The winners clone their egocentric discounting
-  winners <- tmp[winners,]
-  # Some winners mutate
-  winners$egoBias[which(runif(dim(winners)[1]) < mutationChance)] <- NA
-  tmp <- makeAgents(previousGeneration = winners, generation = g, degreeCount = agentDegree)
-  agents <- rbind(agents, tmp$agents)
+  
+  tStart <- Sys.time()
+  tmp <- makeAgents(n = agentCount, degreeCount = agentDegree)
+  agents <- tmp$agents
   ties <- tmp$ties
-}
-
-tEnd <- Sys.time()
-tElapsed <- as.numeric(format(tEnd,"%s")) - as.numeric(format(tStart,"%s"))
-print(paste0('Elapsed time: ',tElapsed,'s'))
-# stopCluster(cores)
-load("model1.RData")
-modelData <- list(agentCount = agentCount,
+  
+  for(g in 1:generationCount) {
+    #print(paste0('Generation ',g,'. Mean egoBias = ',round(mean(agents$egoBias[which(agents$generation==g-1)]),3)))
+    # Make decisions
+    for(d in 1:decisionCount) {
+      # Correct answer (same for all agents)
+      worldState <- runif(1)
+      answer <- worldState > .5
+      # Precache agents pre-advice decisions (i.e. their advice to other agents)
+      tmp <- agents[which(agents$generation == g-1),]
+      tmp$decision <- vector(length = dim(tmp)[1])
+      for(a in 1:dim(tmp)[1]) {
+       tmp$decision[a] <- worldState + rnorm(1, mean = worldState, sd = tmp$sensitivity[a])
+       tmp$decision[a] <- clamp(tmp$decision[a],0,1)
+      }
+      tmp$advisor <- vector(length = dim(tmp)[1])
+      tmp$adjustment <- tmp$advisor
+      for(a in 1:length(tmp$genId)) {
+        myAnswer <- tmp$decision[a]
+        if(sum(ties[a,]>0)) {
+          tmp$advisor[a] <- sample(which(ties[a,]!=0),1)
+          # Advice is either wholly negative or wholly positive (i.e. not graded)
+          advice <- ifelse(tmp$decision[tmp$advisor[a]] > .5, .5, -.5)
+          # Advice is weighted by opinion of the advisor
+          advice <- advice * ties[a,tmp$advisor[a]]
+          # And then combined with own initial decision via egocentric bias
+          myFinalAnswer <- (tmp$decision[a] * tmp$egoBias[a]) + ((1-tmp$egoBias[a]) * advice)
+          myFinalAnswer <- clamp(myFinalAnswer, 0, 1)
+          # Connections are updated after advice taking on the basis of agreement between initial decision and advice
+          confidence <- abs(myAnswer - 0.5)
+          if((myAnswer > .5 & advice > 0) 
+             | (myAnswer < .5 & advice < 0)) 
+            # Agreement, boost connection by confidence
+            tmp$adjustment[a] <- ties[a, tmp$advisor[a]] + (confidence * learnRate)
+          else
+            tmp$adjustment[a] <- ties[a, tmp$advisor[a]] - (confidence * learnRate)
+          tmp$adjustment[a] <- clamp(tmp$adjustment[a], 0, 1)
+        } else {
+          # No advisors connected
+          myFinalAnswer <- myAnswer
+          tmp$adjustment[a] <- 0
+          tmp$advisor[a] <- a
+        }
+        # Tally the decision result
+        if((myFinalAnswer > .5) == answer)
+          tmp$successes[a] <- tmp$successes[a] + 1
+      }
+      # update agents
+      agents$successes[which(agents$generation==g-1)] <- tmp$successes
+      for(a in 1:length(tmp$genId))
+        ties[a,tmp$advisor[a]] <- tmp$adjustment[a]
+    }
+    if(g==generationCount)
+      next()
+    # Evolve
+    tmp <- agents[which(agents$generation == g-1),]
+    tickets <- vector(length = sum(tmp$successes)) # each success buys you a ticket in the draw
+    tmp <- tmp[order(tmp$successes, decreasing = T),]
+    i <- 0
+    for(a in 1:dim(tmp)[1]) {
+      tickets[(i+1):(i+1+tmp$successes[a])] <- a
+      i <- i + 1 + tmp$successes[a]
+    }
+    winners <- sample(tickets, agentCount, replace = T)
+    # The winners clone their egocentric discounting
+    winners <- tmp[winners,]
+    # Some winners mutate
+    winners$egoBias[which(runif(dim(winners)[1]) < mutationChance)] <- NA
+    tmp <- makeAgents(previousGeneration = winners, generation = g, degreeCount = agentDegree)
+    agents <- rbind(agents, tmp$agents)
+    ties <- tmp$ties
+  }
+  
+  tEnd <- Sys.time()
+  tElapsed <- as.numeric(format(tEnd,"%s")) - as.numeric(format(tStart,"%s"))
+  # Return an output containing inputs and the agents data frame
+  modelData <- list(agentCount = agentCount,
                   agentDegree = agentDegree,
                   decisionCount = decisionCount,
                   generationCount = generationCount,
@@ -235,14 +232,38 @@ modelData <- list(agentCount = agentCount,
                   initialConnectionStrength = initialConnectionStrength,
                   agents = agents,
                   duration = tElapsed)
-model1 <- c(model1, list(modelData))
-save(model1, file = 'model1.RData')
+  return(modelData)
+}
+
+agentCount <- 150
+agentDegree <- 5
+decisionCount <- 200
+generationCount <- 200
+mutationChance <- 0.005
+learnRate <- 0.00
+initialConnectionStrength <- function() {
+  return(1)
+}
+
+load("model1.RData")
+
+for(i in 1:100) {
+  modelData <- egoSim(agentCount, agentDegree, decisionCount, generationCount, 
+                    mutationChance, learnRate, initialConnectionStrength)
+
+  print(paste0('Elapsed time: ',modelData$duration,'s'))
+  # stopCluster(cores)
+  model1 <- c(model1, list(modelData))
+  save(model1, file = 'model1.RData')
+}
 
 ggplot(data = agents, aes(x = generation, y = egoBias)) + 
   geom_point(aes(color = as.factor(genId))) +
   geom_smooth() +
   annotate(geom = 'text', label = paste('Mutation rate =',mutationChance),
-           x = 25, y = 1.05) +
+           x = 25, y = 1) +
+  stat_summary(geom = 'point', fun.y = mean, alpha = 0.4) +
+  scale_y_continuous(limits = c(0,1)) +
   theme_light() +
   theme(legend.position = 'none')
 
@@ -250,8 +271,11 @@ ggplot(data = agents, aes(x = generation, y = egoBias)) +
 rm('model1Summary')
 for(model in model1) {
   tmp <- lm(successes ~ egoBias, data = model$agents[which(as.numeric(model$agents$generation)<201),])
-  tmpDF <- as.data.frame(model[1:6,9]) # model properties
-  tmpDF <- cbind(tmpDF, data.frame(intercept = tmp$coefficients[1], egoBiasCoef = tmp$coefficients[2]))
+  tmpDF <- as.data.frame(model[c(1:6,9)]) # model properties
+  tmpDF <- cbind(tmpDF, data.frame(egoBiasFinal = mean(model$agents$egoBias[which(model$agents$generation==
+                                                                                    max(model$agents$generation))]),
+                                   intercept = tmp$coefficients[1], 
+                                   egoBiasCoef = tmp$coefficients[2]))
   if(!exists('model1Summary'))
     model1Summary <- tmpDF
   else
