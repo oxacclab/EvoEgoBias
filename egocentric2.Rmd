@@ -140,6 +140,7 @@ egoSim <- function(agentCount,
         ties[t,a] <- initialConnectionStrength()
       }
     }
+    agents$degree <- sapply(1:dim(agents)[1], getDegree, ties)
     return(list(agents = agents, ties = ties))
   }
   
@@ -218,7 +219,6 @@ egoSim <- function(agentCount,
     tmp <- makeAgents(previousGeneration = winners, generation = g, degreeCount = agentDegree)
     agents <- rbind(agents, tmp$agents)
     ties <- tmp$ties
-    agents$degree <- sapply(1:dim(agents)[1], getDegree, ties)
   }
   
   tEnd <- Sys.time()
