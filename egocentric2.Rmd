@@ -218,6 +218,7 @@ egoSim <- function(agentCount,
     tmp <- makeAgents(previousGeneration = winners, generation = g, degreeCount = agentDegree)
     agents <- rbind(agents, tmp$agents)
     ties <- tmp$ties
+    agents$degree <- sapply(1:dim(agents)[1], getDegree, ties)
   }
   
   tEnd <- Sys.time()
@@ -236,7 +237,7 @@ egoSim <- function(agentCount,
 }
 
 agentCount <- 150
-agentDegree <- 5
+agentDegree <- 1
 decisionCount <- 200
 generationCount <- 200
 mutationChance <- 0.005
@@ -247,7 +248,7 @@ initialConnectionStrength <- function() {
 
 load("model1.RData")
 
-for(i in 1:100) {
+for(i in 1:20) {
   modelData <- egoSim(agentCount, agentDegree, decisionCount, generationCount, 
                     mutationChance, learnRate, initialConnectionStrength)
 
@@ -256,6 +257,81 @@ for(i in 1:100) {
   model1 <- c(model1, list(modelData))
   save(model1, file = 'model1.RData')
 }
+
+```
+
+Graph the summary statistic for the models:
+
+```{r analyseModel}
+library(reshape2)
+load("model1.RData")
+
+# Summarize the regression coefficient of egoBias predicting successess to check if the models work
+rm('model1Summary')
+for(model in model1) {
+  if(max(model$agents$generation) < 199)
+    next()
+  first200 <- model$agents[which(as.numeric(model$agents$generation)<200),]
+  tmp <- lm(successes ~ egoBias, data = first200)
+  tmpDF <- as.data.frame(model[c(1:6,9)]) # model properties
+  tmpDF <- cbind(tmpDF, data.frame(egoBiasFinal = mean(model$agents$egoBias[which(first200$generation==
+                                                                                    max(first200$generation))]),
+                                   egoBiasFinalSD = sd(model$agents$egoBias[which(first200$generation==
+                                                                                    max(first200$generation))]),
+                                   intercept = tmp$coefficients[1], 
+                                   egoBiasCoef = tmp$coefficients[2]))
+  for(g in unique(first200$generation)) 
+    tmpDF[paste0('egoBiasGen', g)] <- mean(first200$egoBias[which(first200$generation==g)])
+  
+  
+  if(!exists('model1Summary'))
+    model1Summary <- tmpDF
+  else
+    model1Summary <- rbind(model1Summary, tmpDF)
+}
+# model1Summary
+
+tmp <- melt(model1Summary, 
+            id.vars = c('mutationChance'), 
+            measure.vars = names(model1Summary[which(grepl('egoBiasGen', names(model1Summary), fixed = T))]),
+            variable.name = 'generation',
+            value.name = 'egoBiasMean')
+tmp$generation <- as.numeric(gsub("\\D", "", tmp$generation)) 
+tmp$mutationChance <- as.factor(tmp$mutationChance)
+# Plot the model summaries
+ggplot(tmp, aes(generation, egoBiasMean, color = mutationChance)) + 
+  geom_point(alpha = 0.01) + 
+  #geom_smooth(method='lm') +
+  geom_smooth() +
+  stat_summary(geom = 'errorbar', fun.data = 'mean_cl_boot') +
+  stat_summary(geom = 'point', shape = 21, size = 1.5, fill = 'black', fun.y = 'mean') +
+  annotate(geom = 'text', x = 5, y = .9, 
+           label = paste('N(mC.01)  =', length(which(model1Summary$mutationChance==0.01))), hjust = 0) +
+  annotate(geom = 'text', x = 5, y = .8, 
+           label = paste('N(mC.005) =', length(which(model1Summary$mutationChance==0.005))), hjust = 0) +
+  theme_light() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major.x = element_blank(),
+        legend.position = 'bottom') +
+  scale_y_continuous(limits = c(0.0, 1.0), expand = c(0,0)) +
+  scale_x_continuous(expand = c(0,0)) +
+  labs(title = 'Weight on own opinion',
+       subtitle = paste(strwrap('Each point is the mean of several evolutionary models in which agents observe the inital decision of a connected neighbour before making their final answer. Only egocentric bias is passed down by generation, and this is simply cloned from reproducers. Reproducers are selected by replaced raffle where probability of winning is myPoints/everyonePoints. Model parameters: 150 agents; 5 connections/agent. Error bars give bootstrapped 95% confidence intervals.',
+                                width = 110),
+                        collapse = "\n"))
+```
+
+So we see that both models converge on an egoBias of around .33.The model with the faster mutation rate takes longer to get there (may be a function of N, however). What might drive this?  
+
+* Advice is weighted as if it comes with .5 confidence - **this should still mean averaging is best**
+* Probability of a judge being better than their advisor - **no, this should be equal odds**  
+    * Could be a function of the number of advisors - **no, number of advisors shouldn't change probability one chosen at random is better than you**
+* Capping internal confidence to 0/1 for extreme decisions - **no, this just means the .5 weighting of advice is balanced**
+* 
+
+What happens if we allow sensitivity to inherit, too? Theoretically sensitivity could reduce the need for an optimal (0.5) egocentric bias because if one is better than one's peers, discounting advice becomes optimal.
+
+```{r archive}
 
 ggplot(data = agents, aes(x = generation, y = egoBias)) + 
   geom_point(aes(color = as.factor(genId))) +
@@ -267,25 +343,6 @@ ggplot(data = agents, aes(x = generation, y = egoBias)) +
   theme_light() +
   theme(legend.position = 'none')
 
-# Summarize the regression coefficient of egoBias predicting successess to check if the models work
-rm('model1Summary')
-for(model in model1) {
-  tmp <- lm(successes ~ egoBias, data = model$agents[which(as.numeric(model$agents$generation)<201),])
-  tmpDF <- as.data.frame(model[c(1:6,9)]) # model properties
-  tmpDF <- cbind(tmpDF, data.frame(egoBiasFinal = mean(model$agents$egoBias[which(model$agents$generation==
-                                                                                    max(model$agents$generation))]),
-                                   intercept = tmp$coefficients[1], 
-                                   egoBiasCoef = tmp$coefficients[2]))
-  if(!exists('model1Summary'))
-    model1Summary <- tmpDF
-  else
-    model1Summary <- rbind(model1Summary, tmpDF)
-}
-model1Summary
-
-```
-What happens if we allow sensitivity to inherit, too? Theoretically sensitivity could reduce the need for an optimal (0.5) egocentric bias because if one is better than one's peers, discounting advice becomes optimal.
-```{r model1.definition}
 # Everything goes in a hyperthreading function because otherwise the cores can't read the functions.
 cores <- makeCluster(detectCores()-2, type='SOCK')
 egoWeight <- seq(0,0.95,0.05) # egocentric discounting parameter
