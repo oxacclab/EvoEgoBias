@@ -60,6 +60,8 @@ Connectivity:
     * Also number of these consulted on each decision
     * Where multiple advisors are encountered, the scaling of bias by advisor count becomes important
 * Static vs dynamic networks
+    * can agents abandon unwanted connections, or forge new ones?
+        * can this process be done by reputation - e.g. how highly current connections weigh a candidate
 * Estimates of advisors' accuracy
     * Encoded as link strength (discounting applied on top)
 
@@ -69,6 +71,7 @@ Agent (inheritable) properties:
 * Sensitivity
     * Agents differ in their ability to perform the task
     * Sensitivity is the narrowness of the gaussian distribution from which error is drawn for each decision
+* Learning rate
 * Network ties
     * Children may be more likely to tie with parents' ties...
 
@@ -79,6 +82,7 @@ Possible extensions:
     * Agents may preferentially choose to get advice from high vs low weighted sources
 * Advice != Decision
     * Agents may give advice on decisions they do not face (or give different advice to their decision for themselves), and may put in less effort (perform more poorly) when they do so.
+    * Advice may be deliberately poor (e.g. non-cooperators)
 * Objective feedback
     * On some/all decisions
     
@@ -237,7 +241,7 @@ egoSim <- function(agentCount,
 }
 
 agentCount <- 150
-agentDegree <- 1
+agentDegree <- 100
 decisionCount <- 200
 generationCount <- 200
 mutationChance <- 0.005
@@ -268,7 +272,7 @@ load("model1.RData")
 
 # Summarize the regression coefficient of egoBias predicting successess to check if the models work
 rm('model1Summary')
-for(model in model1) {
+for(model in model1[(length(model1)-39):length(model1)]) {
   if(max(model$agents$generation) < 199)
     next()
   first200 <- model$agents[which(as.numeric(model$agents$generation)<200),]
@@ -292,23 +296,24 @@ for(model in model1) {
 # model1Summary
 
 tmp <- melt(model1Summary, 
-            id.vars = c('mutationChance'), 
+            id.vars = c('mutationChance', 'agentDegree'), 
             measure.vars = names(model1Summary[which(grepl('egoBiasGen', names(model1Summary), fixed = T))]),
             variable.name = 'generation',
             value.name = 'egoBiasMean')
 tmp$generation <- as.numeric(gsub("\\D", "", tmp$generation)) 
 tmp$mutationChance <- as.factor(tmp$mutationChance)
+tmp$agentDegree <- as.factor(tmp$agentDegree)
 # Plot the model summaries
-ggplot(tmp, aes(generation, egoBiasMean, color = mutationChance)) + 
+ggplot(tmp, aes(generation, egoBiasMean, color = agentDegree)) + 
   geom_point(alpha = 0.01) + 
   #geom_smooth(method='lm') +
   geom_smooth() +
   stat_summary(geom = 'errorbar', fun.data = 'mean_cl_boot') +
   stat_summary(geom = 'point', shape = 21, size = 1.5, fill = 'black', fun.y = 'mean') +
   annotate(geom = 'text', x = 5, y = .9, 
-           label = paste('N(mC.01)  =', length(which(model1Summary$mutationChance==0.01))), hjust = 0) +
+           label = paste('N(degree=1)   =', length(which(model1Summary$agentDegree==1))), hjust = 0) +
   annotate(geom = 'text', x = 5, y = .8, 
-           label = paste('N(mC.005) =', length(which(model1Summary$mutationChance==0.005))), hjust = 0) +
+           label = paste('N(degree=100) =', length(which(model1Summary$agentDegree!=1))), hjust = 0) +
   theme_light() +
   theme(panel.grid.minor = element_blank(),
         panel.grid.major.x = element_blank(),
