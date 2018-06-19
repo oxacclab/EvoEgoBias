@@ -174,7 +174,7 @@ egoSim <- function(agentCount,
         if(sum(ties[a,]>0)) {
           tmp$advisor[a] <- sample(which(ties[a,]!=0),1)
           # Advice is either wholly negative or wholly positive (i.e. not graded)
-          advice <- ifelse(tmp$decision[tmp$advisor[a]] > .5, .5, -.5)
+          #advice <- ifelse(tmp$decision[tmp$advisor[a]] > .5, .5, -.5)
           # Advice is weighted by opinion of the advisor
           advice <- advice * ties[a,tmp$advisor[a]]
           # And then combined with own initial decision via egocentric bias
@@ -241,9 +241,9 @@ egoSim <- function(agentCount,
 }
 
 agentCount <- 150
-agentDegree <- 100
-decisionCount <- 200
-generationCount <- 200
+agentDegree <- 1
+decisionCount <- 100
+generationCount <- 300
 mutationChance <- 0.005
 learnRate <- 0.00
 initialConnectionStrength <- function() {
@@ -251,28 +251,32 @@ initialConnectionStrength <- function() {
 }
 
 load("model1.RData")
-
-for(i in 1:20) {
-  modelData <- egoSim(agentCount, agentDegree, decisionCount, generationCount, 
-                    mutationChance, learnRate, initialConnectionStrength)
-
-  print(paste0('Elapsed time: ',modelData$duration,'s'))
-  # stopCluster(cores)
-  model1 <- c(model1, list(modelData))
-  save(model1, file = 'model1.RData')
+for(m in 1:2) {
+  if(m==2)
+    agentDegree <- 100
+  for(i in 1:20) {
+    modelData <- egoSim(agentCount, agentDegree, decisionCount, generationCount, 
+                      mutationChance, learnRate, initialConnectionStrength)
+  
+    #print(paste0('Elapsed time: ',modelData$duration,'s'))
+    # stopCluster(cores)
+    model1 <- c(model1, list(modelData))
+    save(model1, file = 'model1.RData')
+  }
 }
+
 
 ```
 
 Graph the summary statistic for the models:
 
-```{r analyseModel}
+```{r analyseModel, fig.height=10}
 library(reshape2)
 load("model1.RData")
 
 # Summarize the regression coefficient of egoBias predicting successess to check if the models work
 rm('model1Summary')
-for(model in model1[(length(model1)-39):length(model1)]) {
+ for(model in model1[(length(model1)-39):length(model1)]) {
   if(max(model$agents$generation) < 199)
     next()
   first200 <- model$agents[which(as.numeric(model$agents$generation)<200),]
@@ -305,7 +309,7 @@ tmp$mutationChance <- as.factor(tmp$mutationChance)
 tmp$agentDegree <- as.factor(tmp$agentDegree)
 # Plot the model summaries
 ggplot(tmp, aes(generation, egoBiasMean, color = agentDegree)) + 
-  geom_point(alpha = 0.01) + 
+  geom_point(alpha = 0.05) + 
   #geom_smooth(method='lm') +
   geom_smooth() +
   stat_summary(geom = 'errorbar', fun.data = 'mean_cl_boot') +
@@ -322,7 +326,7 @@ ggplot(tmp, aes(generation, egoBiasMean, color = agentDegree)) +
   scale_x_continuous(expand = c(0,0)) +
   labs(title = 'Weight on own opinion',
        subtitle = paste(strwrap('Each point is the mean of several evolutionary models in which agents observe the inital decision of a connected neighbour before making their final answer. Only egocentric bias is passed down by generation, and this is simply cloned from reproducers. Reproducers are selected by replaced raffle where probability of winning is myPoints/everyonePoints. Model parameters: 150 agents; 5 connections/agent. Error bars give bootstrapped 95% confidence intervals.',
-                                width = 110),
+                                width = 250),
                         collapse = "\n"))
 ```
 
