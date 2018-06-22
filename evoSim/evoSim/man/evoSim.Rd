@@ -4,12 +4,73 @@
 \name{evoSim}
 \alias{evoSim}
 \alias{evoSim-package}
+\alias{evoSim}
 \title{evolutionary models of interacting agents}
+\usage{
+evoSim(agentCount, agentDegree, decisionCount, generationCount, mutationChance,
+  learnRate = 0, makeAgentsFun = NULL, makeAgentFun = NULL,
+  connectAgentsFun = NULL, initialConnectionStrengthFun = NULL,
+  getWorldStateFun = NULL, getDecisionFun = NULL, getAdvisorFun = NULL,
+  updateConnectionsFun = NULL, getFitnessFun = NULL,
+  selectParentsFun = NULL)
+}
+\arguments{
+\item{agentCount}{number of agents in each generation}
+
+\item{agentDegree}{(average) number of connections each agent has}
+
+\item{decisionCount}{number of decisions made each generation}
+
+\item{generationCount}{number of generations (duration of model)}
+
+\item{mutationChance}{probability of a mutation occuring}
+
+\item{learnRate}{scaling factor for updating connection weights}
+
+\item{makeAgentsFun}{function for producing agents. Should follow format of
+\code{\link{makeAgents}}}
+
+\item{makeAgentFun}{function for producing an individual agent. Typically
+called from \code{makeAgents}. Should follow format of
+\code{\link{makeAgent}}}
+
+\item{connectAgentsFun}{function for connecting agents. Should follow format
+of \code{\link{connectAgents}}}
+
+\item{initialConnectionStrengthFun}{function for determining the initial
+strength of connections. Should follow format of
+\code{\link{initialConnectionStrength}}}
+
+\item{getWorldStateFun}{function for determining the initial world state.
+Should follow format of \code{\link{getWorldState}}}
+
+\item{getDecisionFun}{decision function for the agents. Should follow format
+of \code{\link{getDecision}}}
+
+\item{getAdvisorFun}{function determining which agent acts as advisor. Should
+follow format of \code{\link{getAdvisor}}}
+
+\item{getFitnessFun}{fitness function for agent evaluation. Should follow
+format of \code{\link{getFitness}}}
+
+\item{selectParentsFun}{Select which agents get to be parents for the next
+generation. Should follow format of \code{\link{selectParents}}}
+
+\item{updateconnectionsFun}{update function for agent connections. Should
+follow format of \code{\link{updateConnections}}}
+}
 \description{
 egoSim allows for evolutionary models where the agents in any given
 generation can interact with other agents via a connectivity matrix. This
 allows, for example, agents to give one another advice on the solution to a
 common problem.
+
+This function is the specifier for the interactive agent-based
+  models enabled by evoSim. It is called with some simple parameters
+  specifying the number of agents, etc., and further parameters may be used
+  to fine-tune the performance. Almost all behaviour of the model can be
+  adjusted by specifying an appropriate replacement for the default
+  functions.
 }
 \section{Functions}{
 NA

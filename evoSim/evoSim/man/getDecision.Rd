@@ -4,7 +4,7 @@
 \alias{getDecision}
 \title{Return the decisions made by agents}
 \usage{
-getDecision(modelParams, agents, world, ties)
+getDecision(modelParams, agents, world, ties, initial = F)
 }
 \arguments{
 \item{modelParams}{parameters for the model as a named list}

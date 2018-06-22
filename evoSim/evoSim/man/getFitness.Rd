@@ -5,18 +5,18 @@
 \title{Calculate the cumulative fitness (higher is better) for each agent based on
 the current decision}
 \usage{
-getFitness(modelParams, agents, ties, world)
+getFitness(modelParams, agents, world, ties)
 }
 \arguments{
 \item{modelParams}{parameters for the model as a named list}
 
 \item{agents}{data.frame of agents}
 
-\item{ties}{square matrix of connections between agents}
-
 \item{world}{list of world properties (\code{state} obtained from
 \code{\link{getWorldState}}, and \code{generation}, and \code{decision}
 numbers.)}
+
+\item{ties}{square matrix of connections between agents}
 }
 \value{
 a vector of fitness values to replace \code{agents$fitness}

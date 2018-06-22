@@ -102,15 +102,25 @@ initalConnectionStrength <- function(receiver, sender) {
 #'
 #' @export
 connectAgents <- function(modelParams, agents, parents, oldTies) {
-  n <- dim(agents)[1]
+  n <- nrow(agents)
   ties <- matrix(0, nrow = n, ncol = n)
+  tieCount <- rep(0, n)
   for(a in 1:n) {
-    while(getDegree(a, ties) < modelParams$degreeCount) {
-      t <- sample(1:n, 1)
-      if(t==a | getDegree(t, ties) >= (modelParams$degreeCount * 1.5))
-        next()
-      ties[a,t] <- modelParams$initialConnectionStrength(agents[a,], agents[t,])
-      ties[t,a] <- modelParams$initialConnectionStrength(agents[t,], agents[a,])
+    while(tieCount[a] < modelParams$agentDegree) {
+      # pick a connection target
+      targets <- which(tieCount < modelParams$agentDegree)
+      targets <- targets[targets != a]
+      if(length(targets) <= 0)
+        break()
+      if(length(targets) == 1)
+        b <- targets
+      else
+        b <- sample(targets, 1)
+      # form the ties
+      ties[a,b] <- modelParams$initialConnectionStrength(agents[a,], agents[b,])
+      ties[b,a] <- modelParams$initialConnectionStrength(agents[b,], agents[a,])
+      # update the counters
+      tieCount[c(a,b)] <- tieCount[c(a,b)] + 1
     }
   }
   return(ties)
@@ -155,10 +165,13 @@ makeAgents <- function(modelParams, previousGeneration = NULL, parents = NULL) {
     g <- previousGeneration$generation[1]
   }
 
+  g <- g + 1 # increment generation
+
   # Create the agents by inheritance from parents where applicable
   for(i in 1:n) {
     if(!is.null(parents[[i]]))
-      a <- modelParams$makeAgent(modelParams, previousGeneration[parents[[i]]])
+      a <- modelParams$makeAgent(modelParams,
+                                 previousGeneration[previousGeneration$id == parents[[i]], ])
     else
       a <- modelParams$makeAgent(modelParams)
     # add in the metadata for the agent
@@ -170,7 +183,7 @@ makeAgents <- function(modelParams, previousGeneration = NULL, parents = NULL) {
   }
 
   # Connect agents together
-  ties <- connectAgents(makeAgents.agents)
+  ties <- modelParams$connectAgents(modelParams, makeAgents.agents)
   makeAgents.agents$degree <- sapply(1:dim(makeAgents.agents)[1], getDegree, ties)
   return(list(agents = makeAgents.agents, ties = ties))
 }
@@ -190,7 +203,7 @@ makeAgents <- function(modelParams, previousGeneration = NULL, parents = NULL) {
 #'   \code{\link{updateConnections}} as \code{world$state}
 #'
 #' @export
-getWorldState <- function(modelParams,world) {
+getWorldState <- function(modelParams, world) {
   return(runif(1))
 }
 
@@ -215,28 +228,21 @@ getWorldState <- function(modelParams,world) {
 #' @return a vector of decisions which can be bound to the \code{agents} data
 #'   frame
 #' @export
-getDecision <- function(modelParams, agents, world, ties) {
+getDecision <- function(modelParams, agents, world, ties, initial = F) {
   mask <- which(agents$generation == world$generation)
   out <- NULL
-  if(any(!is.null(agents$advisor[mask]))) {
+  if(initial) {
     # initial decision - look and see
-    for(a in agents$id[mask]) {
-      out <- c(out, world$state + rnorm(1, mean = world$state, sd = agents$sensitivity[which(agents$id==a)]))
-    }
+    n <- length(mask)
+    out <- rnorm(n, rep(world$state, n), agents$sensitivity[mask])
   } else {
-    # final decision - take advice
-    for(a in agents$id[mask]) {
-      agent <- agents[which(agents$id==a),]
-      # Check there is advice to be had
-      if(is.null(agent$advisor))
-        out <- c(out,agent$initialDecision)
-      else {
-        advice <- agents$initialDecision[which(agents$id == agent$advisor)]
-        out <- c(out, (agent$initialDecision * agent$egoBias) + ((1-agent$egoBias) * advice))
-      }
-    }
+    # Final decision - take advice
+    # Fetch advice as a vector
+    advice <- agents$initialDecision[agents$advisor]
+    # Then use vector math to do the advice taking
+    out <- (agents$initialDecision * agents$egoBias) + ((1-agents$egoBias) * advice)
+    out[is.na(out)] <- agents$initialDecision[is.na(out)]
   }
-#  return(clamp(out,1,0))
   return(out)
 }
 
@@ -249,15 +255,21 @@ getDecision <- function(modelParams, agents, world, ties) {
 #'   more than one advisor, provided \code{\link{getDecision}} is replaced with
 #'   a function capable of handling the input
 #'
-#' @return a vector of agent ids identifying advisors which can be cound to the
+#' @return a vector of agent ids identifying advisors which can be cbound to the
 #'   \code{agents} data frame.
 #' @export
-getAdvisor <- function(modelParams, agents, ties, world) {
+getAdvisor <- function(modelParams, agents, world, ties) {
   out <- NULL
-  for(i in 1:dim(ties)[1]){
-    advisorGenId <- sample(which(ties[i,]>0),1)
-    out <- c(out, agents$id[which(agents$genId==advisorGenId & agents$generation==world$generation)])
-  }
+  # for(i in 1:dim(ties)[1]){
+  #   choices <- which(ties[i,] > 0)
+  #   if(length(choices) > 0) {
+  #     advisorGenId <- sample(which(ties[i,]>0),1)
+  #     out <- c(out, agents$id[which(agents$genId==advisorGenId & agents$generation==world$generation)])
+  #   } else {
+  #     out <- c(out, NA)
+  #   }
+  # }
+  out <- apply(ties, 1, function(x) sample(which(x != 0),1))
   return(out)
 }
 
@@ -272,7 +284,7 @@ getAdvisor <- function(modelParams, agents, ties, world) {
 #'
 #' @return a square matrix similar to \code{ties} containing updated connection strengths
 #' @export
-updateConnections <- function(modelParams, agents, ties, world) {
+updateConnections <- function(modelParams, agents, world, ties) {
   return(ties)
 }
 
@@ -291,12 +303,12 @@ updateConnections <- function(modelParams, agents, ties, world) {
 #'
 #' @return a vector of fitness values to replace \code{agents$fitness}
 #' @export
-getFitness <- function(modelParams, agents, ties, world) {
+getFitness <- function(modelParams, agents, world, ties) {
   mask <- which(agents$generation==world$generation)
   # binary answer
   correct <- rep((world$state < .5),length(mask))
   correct <- correct == (agents$finalDecision[mask] < .5)
-  return(correct-1)
+  return(agents$fitness[mask] + correct - 1)
 }
 
 #' Select the parents for each slot in the next generation
@@ -313,27 +325,66 @@ getFitness <- function(modelParams, agents, ties, world) {
 #' @return a vector of agent ids for the parent of each to-be-spawned agent
 #'
 #' @export
-selectParents <- function(modelParams, agents, ties, world) {
-  tmp <- agents[which(agents$generation == g-1),]
+selectParents <- function(modelParams, agents, world, ties) {
+  tmp <- agents[which(agents$generation == world$generation),]
   tmp <- tmp[order(tmp$fitness, decreasing = T),]
   # drop the worst half of the population
   half <- quantile(tmp$fitness, .5)
-  tmp <- tmp[which(tmp$fitness > half),]
+  tmp <- tmp[tmp$fitness >= half, ]
   # the others get weighted by relative fitness which are transformed to +ve values
-  tmp$fitness <- tmp$fitness - half
+  tmp$fitness <- tmp$fitness - ceiling(half)
   tickets <- vector(length = sum(tmp$fitness)) # each success buys a ticket in the draw
   i <- 0
-  for(a in 1:dim(tmp)[1]) {
+  for(a in 1:nrow(tmp)) {
     tickets[(i+1):(i+1+tmp$fitness[a])] <- a
     i <- i + 1 + tmp$fitness[a]
   }
-  winners <- sample(tickets, agentCount, replace = T)
+  winners <- sample(tickets, modelParams$agentCount, replace = T)
   # The winners clone their egocentric discounting
   winners <- tmp[winners,'id']
   return(winners)
 }
 
-egoSim <- function(agentCount,
+#' Run an evolutionary model of interacting agents
+#'
+#' @param agentCount number of agents in each generation
+#' @param agentDegree (average) number of connections each agent has
+#' @param decisionCount number of decisions made each generation
+#' @param generationCount number of generations (duration of model)
+#' @param mutationChance probability of a mutation occuring
+#' @param learnRate scaling factor for updating connection weights
+#' @param makeAgentsFun function for producing agents. Should follow format of
+#'   \code{\link{makeAgents}}
+#' @param makeAgentFun function for producing an individual agent. Typically
+#'   called from \code{makeAgents}. Should follow format of
+#'   \code{\link{makeAgent}}
+#' @param connectAgentsFun function for connecting agents. Should follow format
+#'   of \code{\link{connectAgents}}
+#' @param initialConnectionStrengthFun function for determining the initial
+#'   strength of connections. Should follow format of
+#'   \code{\link{initialConnectionStrength}}
+#' @param getWorldStateFun function for determining the initial world state.
+#'   Should follow format of \code{\link{getWorldState}}
+#' @param getDecisionFun decision function for the agents. Should follow format
+#'   of \code{\link{getDecision}}
+#' @param getAdvisorFun function determining which agent acts as advisor. Should
+#'   follow format of \code{\link{getAdvisor}}
+#' @param updateconnectionsFun update function for agent connections. Should
+#'   follow format of \code{\link{updateConnections}}
+#' @param getFitnessFun fitness function for agent evaluation. Should follow
+#'   format of \code{\link{getFitness}}
+#' @param selectParentsFun Select which agents get to be parents for the next
+#'   generation. Should follow format of \code{\link{selectParents}}
+#'
+#' @description This function is the specifier for the interactive agent-based
+#'   models enabled by evoSim. It is called with some simple parameters
+#'   specifying the number of agents, etc., and further parameters may be used
+#'   to fine-tune the performance. Almost all behaviour of the model can be
+#'   adjusted by specifying an appropriate replacement for the default
+#'   functions.
+#'
+#' @export
+evoSim <- function(agentCount,
                    agentDegree,
                    decisionCount,
                    generationCount,
@@ -346,7 +397,9 @@ egoSim <- function(agentCount,
                    getWorldStateFun = NULL,
                    getDecisionFun = NULL,
                    getAdvisorFun = NULL,
-                   updateConnectionsFun = NULL) {
+                   updateConnectionsFun = NULL,
+                   getFitnessFun = NULL,
+                   selectParentsFun = NULL) {
 
   # Generate the model parameters
   modelParams <- list(agentCount = agentCount,
@@ -371,7 +424,7 @@ egoSim <- function(agentCount,
                       selectParents = ifelse(!is.null(selectParentsFun),selectParentsFun,selectParents))
 
   tStart <- Sys.time()
-  tmp <- makeAgents(n = agentCount, degreeCount = agentDegree)
+  tmp <- makeAgents(modelParams)
   agents <- tmp$agents
   ties <- tmp$ties
 
@@ -379,26 +432,27 @@ egoSim <- function(agentCount,
     # Make decisions
     for(d in 1:modelParams$decisionCount) {
       # Correct answer (same for all agents)
-      world <- list(state = modelParams$getWorldState(modelParams,g,d),
-                    generation = g,
-                    decision = d)
-      mask <- which(agents$generation == g-1)
+      world <- list(generation = g, decision = d)
+      world$state <- modelParams$getWorldState(modelParams, world)
+      mask <- which(agents$generation == g)
       # Initial decisions
-      agents$initialDecision[mask] <- modelParams$getDecision(modelParams, agents, world, ties)
+      agents$initialDecision[mask] <- modelParams$getDecision(modelParams, agents, world, ties, initial = T)
       # Advice
-      agents$advisor[mask] <- modelParams$getAdvisor(modelParams, agents, ties, world)
+      agents$advisor[mask] <- modelParams$getAdvisor(modelParams, agents, world, ties)
       # Final decision
       agents$finalDecision[mask] <- modelParams$getDecision(modelParams, agents, world, ties)
       # Evaluate decision
-      agents$fitness[mask] <- modelParams$getFitness(agents, world)
+      agents$fitness[mask] <- modelParams$getFitness(modelParams, agents, world, ties)
       # Update connections
-      ties <- modelParams$updateConnections(modelParams, agents, ties, world)
+      ties <- modelParams$updateConnections(modelParams, agents, world, ties)
     }
     if(g==modelParams$generationCount)
       next()
     # Evolve
-    parents <- modelParams$selectParents(modelParams, agents, ties, world)
-    tmp <- makeAgents(modelParams, agents, parents)
+    parents <- modelParams$selectParents(modelParams, agents, world, ties)
+    tmp <- makeAgents(modelParams, agents[agents$generation == g, ], parents)
+    for(n in names(agents)[which(!(names(agents) %in% names(tmp$agents)))])
+      tmp$agents[,n] <- NA
     agents <- rbind(agents, tmp$agents)
     ties <- tmp$ties
   }

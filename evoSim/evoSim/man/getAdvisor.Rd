@@ -4,21 +4,21 @@
 \alias{getAdvisor}
 \title{Return the advisor selected for each agent}
 \usage{
-getAdvisor(modelParams, agents, ties, world)
+getAdvisor(modelParams, agents, world, ties)
 }
 \arguments{
 \item{modelParams}{parameters for the model as a named list}
 
 \item{agents}{data.frame of agents}
 
-\item{ties}{square matrix of connections between agents}
-
 \item{world}{list of world properties (\code{state} obtained from
 \code{\link{getWorldState}}, and \code{generation}, and \code{decision}
 numbers.)}
+
+\item{ties}{square matrix of connections between agents}
 }
 \value{
-a vector of agent ids identifying advisors which can be cound to the
+a vector of agent ids identifying advisors which can be cbound to the
   \code{agents} data frame.
 }
 \description{

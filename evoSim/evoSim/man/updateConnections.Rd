@@ -4,18 +4,18 @@
 \alias{updateConnections}
 \title{Update the strength of connections between agents}
 \usage{
-updateConnections(modelParams, agents, ties, world)
+updateConnections(modelParams, agents, world, ties)
 }
 \arguments{
 \item{modelParams}{parameters for the model as a named list}
 
 \item{agents}{data.frame of agents}
 
-\item{ties}{square matrix of connections between agents}
-
 \item{world}{list of world properties (\code{state} obtained from
 \code{\link{getWorldState}}, and \code{generation}, and \code{decision}
 numbers.)}
+
+\item{ties}{square matrix of connections between agents}
 }
 \value{
 a square matrix similar to \code{ties} containing updated connection strengths

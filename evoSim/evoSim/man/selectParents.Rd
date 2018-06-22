@@ -4,18 +4,18 @@
 \alias{selectParents}
 \title{Select the parents for each slot in the next generation}
 \usage{
-selectParents(modelParams, agents, ties, world)
+selectParents(modelParams, agents, world, ties)
 }
 \arguments{
 \item{modelParams}{parameters for the model as a named list}
 
 \item{agents}{data.frame of agents}
 
-\item{ties}{square matrix of connections between agents}
-
 \item{world}{list of world properties (\code{state} obtained from
 \code{\link{getWorldState}}, and \code{generation}, and \code{decision}
 numbers.)}
+
+\item{ties}{square matrix of connections between agents}
 }
 \value{
 a vector of agent ids for the parent of each to-be-spawned agent
