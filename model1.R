@@ -1,4 +1,6 @@
 # Model 1 ####
+time <- format(Sys.time(), "%F_%H-%M-%S")
+sink(paste(time, 'log.txt'))
 
 # Agents have direct access to one another's confidence.
 library(tidyverse)
@@ -10,34 +12,94 @@ resultsPath <- ''
 
 # Set up the parallel execution capabilities
 nCores <- detectCores()
-nCores <- nCores - 2
+nCores <- nCores - 4
 cl <- makeCluster(nCores)
 
 # Parameter space to explore
-degrees <- c(1, 50, 150)
-reps <- nCores * 2
+degrees <- c(2)
+sensitivitySDs <- c(0.0, 0.05, 0.1, 0.25, 1)
+reps <- nCores
 
 # Clear the result storage variables
 suppressWarnings(rm('rawdata'))
 suppressWarnings(rm('results'))
 
 # Run the models
-for(degree in degrees) {
+for(sensitivitySD in sensitivitySDs) {
   # make sure the children can see the degree variable
-  clusterExport(cl, "degree")
+  clusterExport(cl, "sensitivitySD")
   # Run parallel repetitions of the model with these settings
+  # degreeResults <- lapply(1:4, function(x) {
   degreeResults <- parLapply(cl, 1:reps, function(x) {
-    library(evoSim)
+    source('evoSim/evoSim/R/evoSim.R')
     data <- evoSim(agentCount = 200,
-                   agentDegree = degree,
+                   agentDegree = 50,
                    decisionCount = 100,
-                   generationCount = 250,
-                   mutationChance = 0.001)
+                   generationCount = 500,
+                   mutationChance = 0.05,
+                   other = list(sensitivitySD = sensitivitySD),
+                   makeAgentFun = function(modelParams, parents = NULL) {
+                     # Inherit egoBias if there's a previous generation and we're not mutating
+                     if(!is.null(parents))
+                       agent <- data.frame(egoBias = parents$egoBias[1],
+                                           sensitivity = runif(1))
+                     else
+                       agent <- data.frame(egoBias = runif(1),
+                                           sensitivity = runif(1))
+                     agent$sensitivity <- rnorm(1, mean = 0.5, sd = modelParams$other$sensitivitySD)
+                     if(runif(1) < modelParams$mutationChance)
+                       agent$egoBias <- .5
+                     return(agent)
+                   },
+                   selectParentsFun = function(modelParams, agents, world, ties) {
+                     tmp <- agents[which(agents$generation == world$generation),]
+                     tmp <- tmp[order(tmp$fitness, decreasing = T),]
+                     # drop the worst half of the population
+                     tmp <- tmp[1:(floor(nrow(tmp)/2)), ]
+                     # the others get weighted by relative fitness which are transformed to +ve values
+                     tmp$fitness <- tmp$fitness - min(tmp$fitness) + 1
+                     # scale appropriately
+                     while(any(tmp$fitness < 10))
+                       tmp$fitness <- tmp$fitness * 10
+                     # and round off
+                     tmp$fitness <- round(tmp$fitness)
+                     tickets <- vector(length = sum(tmp$fitness)) # each success buys a ticket in the draw
+                     i <- 0
+                     for(a in 1:nrow(tmp)) {
+                       tickets[(i+1):(i+1+tmp$fitness[a])] <- a
+                       i <- i + 1 + tmp$fitness[a]
+                     }
+                     winners <- sample(tickets, modelParams$agentCount, replace = T)
+                     # The winners clone their egocentric discounting
+                     winners <- tmp[winners,'id']
+                     #print(cor(agents$egoBias, abs(agents$fitness-.5)))
+                     return(winners)
+                   },
+                   getDecisionFun = function(modelParams, agents, world, ties, initial = F) {
+                     mask <- which(agents$generation == world$generation)
+                     if(initial) {
+                       # initial decision - look and see
+                       n <- length(mask)
+                       agents$initialDecision[mask] <- rnorm(n, 
+                                                             rep(world$state, n), 
+                                                             clamp(agents$sensitivity[mask],Inf))
+                     } else {
+                       # Final decision - take advice
+                       # Use vector math to do the advice taking
+                       out <- NULL
+                       out <- (agents$initialDecision[mask] * agents$egoBias[mask]) + ((1-agents$egoBias[mask]) * agents$advice[mask])
+                       out[is.na(out)] <- agents$initialDecision[mask][is.na(out)]
+                       agents$finalDecision[mask] <- out
+                     }
+                     return(agents)
+                   })
     # save results
     n <- length(unique(data$agents$generation))
-    results <- data.frame(degree = rep(degree, n),
-                          repetition = rep(x, n),
-                          generation = unique(data$agents$generation))
+    results <- data.frame(repetition = rep(x, n),
+                          # degree = rep(degree, n),
+                          sensitivitySD = rep(sensitivitySD, n),
+                          generation = unique(data$agents$generation), 
+                          modelDuration = rep(data$duration, n))
     # bind in the stats of interest aggregated by the generation
     results <- cbind(results, 
                      aggregate(data$agents, 
@@ -68,33 +130,31 @@ for(degree in degrees) {
 stopCluster(cl)
 
 # Save data
-write.csv(results, paste0(resultsPath, 'results.csv'))
-write.csv(rawdata, paste0(resultsPath, 'rawdata.csv'))
+write.csv(results, paste0(resultsPath, paste(time, 'results.csv')))
+write.csv(rawdata, paste0(resultsPath, paste(time, 'rawdata.csv')))
 
 # Neat output graph
 w <- 0.2
-ggplot(results, aes(x = generation, y = egoBias, color = as.factor(degree))) + 
+ggplot(results[results$generation%%10==1, ], aes(x = generation, y = egoBias, color = as.factor(sensitivitySD))) + 
   #geom_point(alpha = 0.5, position = position_dodge(w)) +
   stat_summary(geom = 'point', fun.y = mean, size = 3, shape = 18, position = position_dodge(w)) + 
   stat_summary(geom = 'errorbar', fun.data = mean_cl_boot, size = 1, width = 0.2, position = position_dodge(w)) +
   stat_summary(geom = 'line', fun.y = mean, position = position_dodge(w)) +
-  theme_light()
+  theme_light() +
+  scale_y_continuous(limits = c(0,1), expand = c(0,0))
 ggsave('overview.png')
-
-ggplot(results, aes(x = initialDecision, color = as.factor(degree))) + geom_histogram(bins = 50)
-ggplot(results, aes(x = fitness, color = as.factor(degree))) + geom_histogram(bins = 50)
-ggplot(results, aes(x = finalDecision, color = as.factor(degree))) + geom_histogram(bins = 50)
-
-ggplot(results[results$generation==1,], aes(x = initialDecision, y = finalDecision, colour = as.factor(degree))) +
-  geom_point(alpha = 0.2) +
-  geom_abline(slope = 1, intercept = 0) +
-  coord_fixed()
-
-# show <- data.frame(generation=integer(), duration, degree)
-# for(i in rawdata$model)
-#   show <- rbind(show, data.frame(generation = i$generationCount, duration = i$duration, degree = i$agentDegree))
-# ggplot(rawdata$model, aes(x = generation, y=duration, colour = degree)) +
-#   stat_summary(geom = 'point', fun.y = mean, size = 3, shape = 18, position = position_dodge(w)) + 
+# 
+# ggplot(results, aes(x = initialDecision, color = as.factor(degree))) + geom_histogram(bins = 50)
+# ggplot(results, aes(x = fitness, color = as.factor(degree))) + geom_histogram(bins = 50)
+# ggplot(results, aes(x = finalDecision, color = as.factor(degree))) + geom_histogram(bins = 50)
+# 
+# ggplot(results, aes(x = initialDecision, y = finalDecision, colour = as.factor(degree))) +
+#   geom_point(alpha = 0.2) +
+#   geom_abline(slope = 1, intercept = 0) +
+#   coord_fixed()
+# 
+# ggplot(results, aes(x = generation, y=modelDuration, colour = as.factor(degree))) +
+#   stat_summary(geom = 'point', fun.y = mean, size = 3, shape = 18, position = position_dodge(w)) +
 #   stat_summary(geom = 'errorbar', fun.data = mean_cl_boot, size = 1, width = 0.2, position = position_dodge(w)) +
 #   stat_summary(geom = 'line', fun.y = mean, position = position_dodge(w)) +
 #   theme_light()

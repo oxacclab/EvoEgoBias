@@ -18,8 +18,8 @@ numbers.)}
 \item{ties}{square matrix of connections between agents}
 }
 \value{
-a vector of decisions which can be bound to the \code{agents} data
-  frame
+an adjusted version of the \code{agents} data frame with decisions
+  included.
 }
 \description{
 This function uses the \code{agents$advisor} column to determine

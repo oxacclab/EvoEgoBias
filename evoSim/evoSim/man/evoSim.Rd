@@ -8,11 +8,11 @@
 \title{evolutionary models of interacting agents}
 \usage{
 evoSim(agentCount, agentDegree, decisionCount, generationCount, mutationChance,
-  learnRate = 0, makeAgentsFun = NULL, makeAgentFun = NULL,
-  connectAgentsFun = NULL, initialConnectionStrengthFun = NULL,
-  getWorldStateFun = NULL, getDecisionFun = NULL, getAdvisorFun = NULL,
-  updateConnectionsFun = NULL, getFitnessFun = NULL,
-  selectParentsFun = NULL)
+  learnRate = 0, other = NULL, makeAgentsFun = NULL,
+  makeAgentFun = NULL, connectAgentsFun = NULL,
+  initialConnectionStrengthFun = NULL, getWorldStateFun = NULL,
+  getDecisionFun = NULL, getAdviceFun = NULL, updateConnectionsFun = NULL,
+  getFitnessFun = NULL, selectParentsFun = NULL)
 }
 \arguments{
 \item{agentCount}{number of agents in each generation}
@@ -26,6 +26,9 @@ evoSim(agentCount, agentDegree, decisionCount, generationCount, mutationChance,
 \item{mutationChance}{probability of a mutation occuring}
 
 \item{learnRate}{scaling factor for updating connection weights}
+
+\item{other}{list used for passing other arguments to custom functions.
+Accessed by \code{modelParams$other}}
 
 \item{makeAgentsFun}{function for producing agents. Should follow format of
 \code{\link{makeAgents}}}
@@ -47,14 +50,14 @@ Should follow format of \code{\link{getWorldState}}}
 \item{getDecisionFun}{decision function for the agents. Should follow format
 of \code{\link{getDecision}}}
 
-\item{getAdvisorFun}{function determining which agent acts as advisor. Should
-follow format of \code{\link{getAdvisor}}}
-
 \item{getFitnessFun}{fitness function for agent evaluation. Should follow
 format of \code{\link{getFitness}}}
 
 \item{selectParentsFun}{Select which agents get to be parents for the next
 generation. Should follow format of \code{\link{selectParents}}}
+
+\item{getAdvisorFun}{function determining which agent acts as advisor. Should
+follow format of \code{\link{getAdvisor}}}
 
 \item{updateconnectionsFun}{update function for agent connections. Should
 follow format of \code{\link{updateConnections}}}

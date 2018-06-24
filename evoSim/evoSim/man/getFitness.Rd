@@ -19,7 +19,7 @@ numbers.)}
 \item{ties}{square matrix of connections between agents}
 }
 \value{
-a vector of fitness values to replace \code{agents$fitness}
+an updated version of the \code{agents} data frame with updated fitness values
 }
 \description{
 Agent's fitness is \code{agents$fitness[i]-1} if incorrect,

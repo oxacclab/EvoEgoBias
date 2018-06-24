@@ -3,7 +3,7 @@
 export(clamp)
 export(connectAgents)
 export(evoSim)
-export(getAdvisor)
+export(getAdvice)
 export(getDecision)
 export(getDegree)
 export(getFitness)
