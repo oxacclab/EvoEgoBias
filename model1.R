@@ -1,19 +1,24 @@
 # Model 1 ####
-time <- format(Sys.time(), "%F_%H-%M-%S")
-sink(paste(time, 'log.txt'))
-
 # Agents have direct access to one another's confidence.
-library(tidyverse)
-library(parallel)
-#library(evoSim)
+ARC <- !(Sys.info()$sysname == 'Windows')
 
 # Storage path for results
-resultsPath <- ''
+resultsPath <- ifelse(ARC,'/data/xpsy-acc/wolf5224/EvoEgoBias/','')
+time <- format(Sys.time(), "%F_%H-%M-%S")
+resultsPath <- paste0(resultsPath,time)
+
+sink(paste(resultsPath, 'log.txt'))
+Sys.info()
+
+# Libraries
+library(tidyverse)
+library(parallel)
 
 # Set up the parallel execution capabilities
-nCores <- detectCores()
-nCores <- nCores - 4
+nCores <- ifelse(ARC,detectCores(),detectCores() - 4)
 cl <- makeCluster(nCores)
+
+print(paste('Running in parallel on', nCores, 'cores.'))
 
 # Parameter space to explore
 degrees <- c(2)
@@ -30,6 +35,7 @@ for(sensitivitySD in sensitivitySDs) {
   clusterExport(cl, "sensitivitySD")
   # Run parallel repetitions of the model with these settings
   # degreeResults <- lapply(1:4, function(x) {
+  startTime <- Sys.time()
   degreeResults <- parLapply(cl, 1:reps, function(x) {
     source('evoSim/evoSim/R/evoSim.R')
     data <- evoSim(agentCount = 200,
@@ -124,14 +130,16 @@ for(sensitivitySD in sensitivitySDs) {
     else
       rawdata <- rbind(rawdata, res$rawdata)
   }
+  print(paste0('Completed reps for SD = ', sensitivitySD,':'))
+  Sys.time() = startTime
 }
 
 # Cleanup
 stopCluster(cl)
 
 # Save data
-write.csv(results, paste0(resultsPath, paste(time, 'results.csv')))
-write.csv(rawdata, paste0(resultsPath, paste(time, 'rawdata.csv')))
+write.csv(results, paste(resultsPath, 'results.csv'))
+write.csv(rawdata, paste(resultsPath, 'rawdata.csv'))
 
 # Neat output graph
 w <- 0.2
@@ -142,16 +150,17 @@ ggplot(results[results$generation%%10==1, ], aes(x = generation, y = egoBias, co
   stat_summary(geom = 'line', fun.y = mean, position = position_dodge(w)) +
   theme_light() +
   scale_y_continuous(limits = c(0,1), expand = c(0,0))
-ggsave('overview.png')
+ggsave(paste(resultsPath,'overview.png'))
 # 
 # ggplot(results, aes(x = initialDecision, color = as.factor(degree))) + geom_histogram(bins = 50)
 # ggplot(results, aes(x = fitness, color = as.factor(degree))) + geom_histogram(bins = 50)
 # ggplot(results, aes(x = finalDecision, color = as.factor(degree))) + geom_histogram(bins = 50)
 # 
-# ggplot(results, aes(x = initialDecision, y = finalDecision, colour = as.factor(degree))) +
-#   geom_point(alpha = 0.2) +
-#   geom_abline(slope = 1, intercept = 0) +
-#   coord_fixed()
+ggplot(results, aes(x = initialDecision, y = finalDecision, colour = as.factor(sensitivitySD))) +
+  geom_point(alpha = 0.2) +
+  geom_abline(slope = 1, intercept = 0) +
+  coord_fixed()
+ggsave(paste(resultsPath,'autocor.png'))
 # 
 # ggplot(results, aes(x = generation, y=modelDuration, colour = as.factor(degree))) +
 #   stat_summary(geom = 'point', fun.y = mean, size = 3, shape = 18, position = position_dodge(w)) +
