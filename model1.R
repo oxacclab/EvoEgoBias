@@ -1,9 +1,9 @@
 # Model 1 ####
 # Agents have direct access to one another's confidence.
-ARC <- !(Sys.info()$sysname == 'Windows')
+ARC <- !(Sys.info()[[1]] == 'Windows')
 
 # Storage path for results
-resultsPath <- ifelse(ARC,'/data/xpsy-acc/wolf5224/EvoEgoBias/','')
+resultsPath <- ifelse(ARC,'/data/xpsy-acc/wolf5224/EvoEgoBias/','results/')
 time <- format(Sys.time(), "%F_%H-%M-%S")
 resultsPath <- paste0(resultsPath,time)
 
