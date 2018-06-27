@@ -9,8 +9,14 @@ resultsPath <- paste0(resultsPath,time)
 
 
 # Libraries
-library(tidyverse)
-library(parallel)
+if(!require('tidyverse')) {
+  install.packages(repos="http://cran.r-project.org",'tidyverse')
+  library(tidyverse)
+}
+if(!require('parallel')) {
+  install.packages(repos="http://cran.r-project.org",'parallel')
+  library(parallel)
+}
 
 if(ARC) {
   sink(paste(resultsPath, 'log.txt'))
