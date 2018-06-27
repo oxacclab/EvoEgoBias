@@ -9,10 +9,6 @@ resultsPath <- paste0(resultsPath,time)
 
 
 # Libraries
-if(!require('tidyverse')) {
-  install.packages(repos="http://cran.r-project.org",'tidyverse')
-  library(tidyverse)
-}
 if(!require('parallel')) {
   install.packages(repos="http://cran.r-project.org",'parallel')
   library(parallel)
@@ -39,15 +35,8 @@ degrees <- c(2)
 sensitivitySDs <- c(1)
 
 
-# Run the models
-for(sensitivitySD in sensitivitySDs) {
-  # make sure the children can see the degree variable
-  if(ARC)
-    clusterExport(cl, "sensitivitySD")
-  # Run parallel repetitions of the model with these settings
-  startTime <- Sys.time()
-  degreeResults <- lapply(1:reps, function(x) {
-  # degreeResults <- parLapply(cl, 1:reps, function(x) {
+# Define the function
+  func <- function(x) {
     source('evoSim/evoSim/R/evoSim.R')
     data <- evoSim(agentCount = 150,
                    agentDegree = 100,
@@ -145,7 +134,21 @@ for(sensitivitySD in sensitivitySDs) {
     rawdata <- data
     rawdata$rep <- x
     return(list(rawdata = rawdata, results = results))
-  })
+  }
+
+  
+# Run the models
+for(sensitivitySD in sensitivitySDs) {
+  # make sure the children can see the degree variable
+  if(ARC)
+    clusterExport(cl, "sensitivitySD")
+  
+  # Run parallel repetitions of the model with these settings
+  startTime <- Sys.time()
+  if(!ARC)
+    degreeResults <- lapply(1:reps, func)
+  else
+    degreeResults <- parLapply(cl, 1:reps, func)
   for(res in degreeResults) {
     if(!exists('results'))
       results <- res$results
@@ -169,6 +172,10 @@ write.csv(results, paste(resultsPath, 'results.csv'))
 save(rawdata, file = paste(resultsPath, 'rawdata.Rdata'))
 
 if(!ARC) {
+  if(!require('tidyverse')) {
+    install.packages('tidyverse')
+    library(tidyverse)
+  }
   # Neat output graph
   tmp <- rawdata[[1]]$agents
   w <- 0.2
