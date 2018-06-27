@@ -3,7 +3,7 @@
 ARC <- Sys.info()[[1]] != 'Windows'
 
 # Storage path for results
-resultsPath <- ifelse(ARC,'/data/xpsy-acc/wolf5224/EvoEgoBias/','results/')
+resultsPath <- ifelse(ARC,'/data/xpsy-acc/wolf5224/EvoEgoBias/results/','results/')
 time <- format(Sys.time(), "%F_%H-%M-%S")
 resultsPath <- paste0(resultsPath,time)
 
@@ -15,7 +15,7 @@ if(!require('parallel')) {
 }
 
 if(ARC) {
-  sink(paste(resultsPath, 'log.txt'))
+  # sink(paste(resultsPath, 'log.txt'))
   Sys.info()
   # Set up the parallel execution capabilities
   nCores <- detectCores()
