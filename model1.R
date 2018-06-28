@@ -1,7 +1,7 @@
 # Model 1 ####
 # Agents have direct access to one another's confidence.
 ARC <- Sys.info()[[1]] != 'Windows'
-ARC <- T
+# ARC <- T
 
 # Storage path for results
 resultsPath <- ifelse(ARC,'results/','results/')
@@ -37,7 +37,7 @@ runModel <- function(spec) {
   data <- evoSim(agentCount = spec$agents,
                  agentDegree = spec$degree,
                  decisionCount = spec$decisions,
-                 generationCount = 20,
+                 generationCount = 2500,
                  mutationChance = 0.01,
                  other = list(),
                  makeAgentFun = function(modelParams, parents = NULL) {
