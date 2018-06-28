@@ -17,7 +17,7 @@ if(!require('parallel')) {
 
 if(ARC) {
   # sink(paste(resultsPath, 'log.txt'))
-  Sys.info()
+  print(Sys.info())
   # Set up the parallel execution capabilities
   nCores <- detectCores()
   cl <- makeCluster(nCores)
@@ -32,7 +32,8 @@ if(ARC) {
 
 
 # Define the function
-runModel <- function(spec) {
+runModel <- function(spec, .wd) {
+  setwd(.wd)
   source('evoSim/evoSim/R/evoSim.R')
   data <- evoSim(agentCount = spec$agents,
                  agentDegree = spec$degree,
@@ -152,11 +153,12 @@ sensitivitySDs <- c(5)
 #   clusterExport(cl, "sensitivitySD")
 
 # Run parallel repetitions of the model with these settings
+.wd <- getwd()
 startTime <- Sys.time()
 if(!ARC) {
-  degreeResults <- lapply(specs, runModel)
+  degreeResults <- lapply(specs, runModel, .wd)
 } else {
-  degreeResults <- parLapplyLB(cl, specs, runModel)
+  degreeResults <- parLapplyLB(cl, specs, runModel, .wd)
 }
 
 # Join up results
