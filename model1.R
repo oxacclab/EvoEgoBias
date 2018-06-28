@@ -157,7 +157,7 @@ if(!ARC) {
   degreeResults <- lapply(specs, runModel, .wd)
 } else {
   print('Executing parallel operations...')
-  degreeResults <- parLapplyLB(cl, specs, runModel, .wd)
+  degreeResults <- parLapply(cl, specs, runModel, .wd)
 }
 
 print('...combining results...')
