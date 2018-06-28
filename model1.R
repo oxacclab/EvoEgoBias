@@ -143,8 +143,6 @@ for(x in c(2,10,100)) {
     }
   }
 }
-degrees <- c(2)
-sensitivitySDs <- c(5)
 
 
 # Run the models
@@ -158,9 +156,11 @@ startTime <- Sys.time()
 if(!ARC) {
   degreeResults <- lapply(specs, runModel, .wd)
 } else {
+  print('Executing parallel operations...')
   degreeResults <- parLapplyLB(cl, specs, runModel, .wd)
 }
 
+print('...combining results...')
 # Join up results
 for(res in degreeResults) {
   if(!exists('results'))
@@ -172,16 +172,18 @@ for(res in degreeResults) {
   else
     rawdata[[length(rawdata)+1]] <- res$rawdata
 }
-print(paste0('Complete:'))
+print(paste0('...complete.'))
 print(Sys.time() - startTime)
 
 # Cleanup
 if(ARC)
   stopCluster(cl)
 
+print('Saving data...')
 # Save data
 write.csv(results, paste(resultsPath, 'results.csv'))
 save(rawdata, file = paste(resultsPath, 'rawdata.Rdata'))
+print('...complete.')
 
 if(!ARC) {
   if(!require('tidyverse')) {
