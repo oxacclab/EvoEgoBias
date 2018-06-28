@@ -1,6 +1,7 @@
 # Model 1 ####
 # Agents have direct access to one another's confidence.
 ARC <- Sys.info()[[1]] != 'Windows'
+ARC <- T
 
 # Storage path for results
 resultsPath <- ifelse(ARC,'results/','results/')
@@ -36,7 +37,7 @@ runModel <- function(spec) {
   data <- evoSim(agentCount = spec$agents,
                  agentDegree = spec$degree,
                  decisionCount = spec$decisions,
-                 generationCount = 2000,
+                 generationCount = 20,
                  mutationChance = 0.01,
                  other = list(),
                  makeAgentFun = function(modelParams, parents = NULL) {
@@ -111,9 +112,9 @@ runModel <- function(spec) {
                  })
   # save results
   n <- length(unique(data$agents$generation))
-  results <- data.frame(repetition = rep(x, n),
+  results <- data.frame(repetition = rep(1, n),
                         # degree = rep(degree, n),
-                        sensitivitySD = rep(sensitivitySD, n),
+                        sensitivitySD = rep(5, n),
                         generation = unique(data$agents$generation), 
                         modelDuration = rep(data$duration, n))
   # bind in the stats of interest aggregated by the generation
@@ -127,7 +128,7 @@ runModel <- function(spec) {
                                        'initialDecision', 
                                        'finalDecision')])
   rawdata <- data
-  rawdata$rep <- x
+  rawdata$rep <- 1
   return(list(rawdata = rawdata, results = results))
 }
 
