@@ -3,7 +3,7 @@
 ARC <- Sys.info()[[1]] != 'Windows'
 
 # Storage path for results
-resultsPath <- ifelse(ARC,'/data/xpsy-acc/wolf5224/EvoEgoBias/results/','results/')
+resultsPath <- ifelse(ARC,'results/','results/')
 time <- format(Sys.time(), "%F_%H-%M-%S")
 resultsPath <- paste0(resultsPath,time)
 
@@ -30,20 +30,15 @@ if(ARC) {
 }
 
 
-# Parameter space to explore
-degrees <- c(2)
-sensitivitySDs <- c(0, 1, 5, 10)
-
-
 # Define the function
-func <- function(x) {
+runModel <- function(spec) {
   source('evoSim/evoSim/R/evoSim.R')
-  data <- evoSim(agentCount = 150,
-                 agentDegree = 100,
-                 decisionCount = 150,
-                 generationCount = 1500,
+  data <- evoSim(agentCount = spec$agents,
+                 agentDegree = spec$degree,
+                 decisionCount = spec$decisions,
+                 generationCount = 2000,
                  mutationChance = 0.01,
-                 other = list(sensitivitySD = sensitivitySD),
+                 other = list(),
                  makeAgentFun = function(modelParams, parents = NULL) {
                    # Inherit egoBias if there's a previous generation and we're not mutating
                    if(!is.null(parents)) {
@@ -136,35 +131,46 @@ func <- function(x) {
   return(list(rawdata = rawdata, results = results))
 }
 
-func <- function(x) {
-  return(list(rawdata = paste('hi from',x), results = data.frame(sample(1:10,10))))
-}
-  
-# Run the models
-for(sensitivitySD in sensitivitySDs) {
-  # make sure the children can see the degree variable
-  if(ARC)
-    clusterExport(cl, "sensitivitySD")
-  
-  # Run parallel repetitions of the model with these settings
-  startTime <- Sys.time()
-  if(!ARC)
-    degreeResults <- lapply(1:reps, func)
-  else
-    degreeResults <- parLapply(cl, 1:reps, func)
-  for(res in degreeResults) {
-    if(!exists('results'))
-      results <- res$results
-    else
-      results <- rbind(results, res$results)
-    if(!exists('rawdata'))
-      rawdata <- list(res$rawdata)
-    else
-      rawdata[[length(rawdata)+1]] <- res$rawdata
+
+# Parameter space to explore
+specs <- list()
+for(x in c(2,10,100)) {
+  for(y in c(2,10,100)) {
+    for(z in c(2,10,100)) {
+      specs[[length(specs)+1]] <- list(agents=x,degree=y,decisions=z)
+    }
   }
-  print(paste0('Completed reps for SD = ', sensitivitySD,':'))
-  print(Sys.time() - startTime)
 }
+degrees <- c(2)
+sensitivitySDs <- c(5)
+
+
+# Run the models
+# make sure the children can see the degree variable
+if(ARC)
+  clusterExport(cl, "sensitivitySD")
+
+# Run parallel repetitions of the model with these settings
+startTime <- Sys.time()
+if(!ARC) {
+  degreeResults <- lapply(specs, runModel)
+} else {
+  degreeResults <- parLapplyLB(cl, specs, runModel)
+}
+
+# Join up results
+for(res in degreeResults) {
+  if(!exists('results'))
+    results <- res$results
+  else
+    results <- rbind(results, res$results)
+  if(!exists('rawdata'))
+    rawdata <- list(res$rawdata)
+  else
+    rawdata[[length(rawdata)+1]] <- res$rawdata
+}
+print(paste0('Complete:'))
+print(Sys.time() - startTime)
 
 # Cleanup
 if(ARC)
