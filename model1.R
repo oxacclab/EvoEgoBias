@@ -147,8 +147,8 @@ sensitivitySDs <- c(5)
 
 # Run the models
 # make sure the children can see the degree variable
-if(ARC)
-  clusterExport(cl, "sensitivitySD")
+# if(ARC)
+#   clusterExport(cl, "sensitivitySD")
 
 # Run parallel repetitions of the model with these settings
 startTime <- Sys.time()
