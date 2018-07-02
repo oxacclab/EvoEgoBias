@@ -1,7 +1,10 @@
-# Model 1 ####
+# Model 2 ####
+parallel <- T
+
 # Agents have direct access to one another's confidence.
 ARC <- Sys.info()[[1]] != 'Windows'
-# ARC <- T
+if(parallel)
+  ARC <- T
 
 # Storage path for results
 resultsPath <- ifelse(ARC,'results/','results/')
@@ -25,11 +28,11 @@ if(ARC) {
   reps <- nCores
 } else {
   reps <- 1
-  # Clear the result storage variables
-  suppressWarnings(rm('rawdata'))
-  suppressWarnings(rm('results'))
 }
 
+# Clear the result storage variables
+suppressWarnings(rm('rawdata'))
+suppressWarnings(rm('results'))
 
 # Define the function
 runModel <- function(spec, .wd) {
@@ -40,7 +43,7 @@ runModel <- function(spec, .wd) {
                  decisionCount = spec$decisions,
                  generationCount = 2500,
                  mutationChance = 0.01,
-                 other = list(),
+                 other = list(sensitivity = spec$sensitivity, sensitivitySD = spec$sensitivitySD),
                  makeAgentFun = function(modelParams, parents = NULL) {
                    # Inherit egoBias if there's a previous generation and we're not mutating
                    if(!is.null(parents)) {
@@ -56,9 +59,10 @@ runModel <- function(spec, .wd) {
                    }
                    else {
                      # print(paste('novelty',parents$generation))
-                     egoBias <- rnorm(1, .5, 1)
+                     egoBias <- 0.99#rnorm(1, .5, 1)
                    }
-                   sensitivity <- abs(rnorm(1, mean = 10, sd = 5))
+                   sensitivity <- abs(rnorm(1, mean = modelParams$other$sensitivity, 
+                                            sd = modelParams$other$sensitivitySD))
                    # Keep egoBias to within [0-1]
                    egoBias <- clamp(egoBias, maxVal = 1, minVal = 0)
                    return(data.frame(sensitivity, egoBias))
@@ -87,6 +91,7 @@ runModel <- function(spec, .wd) {
                    #print(cor(agents$egoBias, abs(agents$fitness-.5)))
                    # print(summary(agents[agents$id %in% winners, c('egoBias', 'fitness')]))
                    # print(tmp[tmp$id %in% winners,])
+                   print(paste('Selected parents for generation',world$generation))
                    return(winners)
                  },
                  getDecisionFun = function(modelParams, agents, world, ties, initial = F) {
@@ -114,7 +119,9 @@ runModel <- function(spec, .wd) {
   # save results
   n <- length(unique(data$agents$generation))
   results <- data.frame(generation = unique(data$agents$generation), 
-                        modelDuration = rep(data$duration, n))
+                        modelDuration = rep(data$duration, n),
+                        sensitivity = rep(spec$sensitivity, n),
+                        sensitivitySD = rep(spec$sensitivitySD, n))
   # bind in the stats of interest aggregated by the generation
   results <- cbind(results, 
                    aggregate(data$agents, 
@@ -133,10 +140,14 @@ runModel <- function(spec, .wd) {
 
 # Parameter space to explore
 specs <- list()
-for(x in c(2,10,100)) {
-  for(y in c(2,10,100)) {
-    for(z in c(2,10,100)) {
-      specs[[length(specs)+1]] <- list(agents=x,degree=y,decisions=z)
+for(x in c(1000)) {
+  for(y in c(10)) {
+    for(z in c(30)) {
+      for(s in c(1,10,50)) {
+        for(sSD in c(1, 10, 50)) {
+          specs[[length(specs)+1]] <- list(agents=x,degree=y,decisions=z,sensitivity=s,sensitivitySD=sSD)
+        }
+      }
     }
   }
 }

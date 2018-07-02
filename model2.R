@@ -1,7 +1,10 @@
-# Model 1 ####
+# Model 2 ####
+parallel <- T
+
 # Agents have direct access to one another's confidence.
 ARC <- Sys.info()[[1]] != 'Windows'
-# ARC <- T
+if(parallel)
+  ARC <- T
 
 # Storage path for results
 resultsPath <- ifelse(ARC,'results/','results/')
@@ -25,11 +28,11 @@ if(ARC) {
   reps <- nCores
 } else {
   reps <- 1
-  # Clear the result storage variables
-  suppressWarnings(rm('rawdata'))
-  suppressWarnings(rm('results'))
 }
 
+# Clear the result storage variables
+suppressWarnings(rm('rawdata'))
+suppressWarnings(rm('results'))
 
 # Define the function
 runModel <- function(spec, .wd) {
@@ -56,7 +59,7 @@ runModel <- function(spec, .wd) {
                    }
                    else {
                      # print(paste('novelty',parents$generation))
-                     egoBias <- rnorm(1, .5, 1)
+                     egoBias <- 0.01#rnorm(1, .5, 1)
                    }
                    sensitivity <- abs(rnorm(1, mean = 10, sd = 5))
                    # Keep egoBias to within [0-1]
@@ -87,6 +90,7 @@ runModel <- function(spec, .wd) {
                    #print(cor(agents$egoBias, abs(agents$fitness-.5)))
                    # print(summary(agents[agents$id %in% winners, c('egoBias', 'fitness')]))
                    # print(tmp[tmp$id %in% winners,])
+                   print(paste('Selected parents for generation',world$generation))
                    return(winners)
                  },
                  getDecisionFun = function(modelParams, agents, world, ties, initial = F) {
@@ -133,9 +137,9 @@ runModel <- function(spec, .wd) {
 
 # Parameter space to explore
 specs <- list()
-for(x in c(2,10,100)) {
-  for(y in c(2,10,100)) {
-    for(z in c(2,10,100)) {
+for(x in c(500,1000)) {
+  for(y in c(10)) {
+    for(z in c(30)) {
       specs[[length(specs)+1]] <- list(agents=x,degree=y,decisions=z)
     }
   }
