@@ -1,6 +1,5 @@
-# Model 7 ####
-# What happens if advice is noisy?
-# Noisy relative to sensitivity
+# Model 8 ####
+# Advice is disconnected from initial decision
 parallel <- T
 
 # Agents have direct access to one another's confidence.
@@ -48,7 +47,8 @@ runModel <- function(spec, .wd) {
                  other = list(sensitivity = spec$sensitivity, 
                               sensitivitySD = spec$sensitivitySD,
                               startingEgoBias = spec$startingEgoBias,
-                              adviceNoise = spec$adviceNoise),
+                              adviceNoise = spec$adviceNoise,
+                              badAdviceProb = spec$badAdviceProb),
                  makeAgentFun = function(modelParams, parents = NULL) {
                    # Inherit egoBias if there's a previous generation and we're not mutating
                    if(!is.null(parents)) {
@@ -99,24 +99,18 @@ runModel <- function(spec, .wd) {
                    print(paste('Selected parents for generation',world$generation))
                    return(winners)
                  },
-                 getDecisionFun = function(modelParams, agents, world, ties, initial = F) {
+                 getAdviceFun = function(modelParams, agents, world, ties) {
                    mask <- which(agents$generation == world$generation)
-                   if(initial) {
-                     # initial decision - look and see
-                     n <- length(mask)
-                     agents$initialDecision[mask] <- rnorm(n, 
-                                                           rep(world$state, n), 
-                                                           clamp(agents$sensitivity[mask],Inf))
-                   } else {
-                     # Final decision - take advice
-                     # Use vector math to do the advice taking
-                     out <- NULL
-                     noise <- rnorm(length(mask), 0, modelParams$other$adviceNoise)
-                     out <- (agents$initialDecision[mask] * agents$egoBias[mask]) + 
-                       ((1-agents$egoBias[mask]) * (agents$advice[mask] + noise))
-                     out[is.na(out)] <- agents$initialDecision[mask][is.na(out)]
-                     agents$finalDecision[mask] <- out
-                   }
+                   agents$advisor[mask] <- apply(ties, 1, function(x) sample(which(x != 0),1))
+                   # Fetch advice as a vector
+                   n <- length(mask)
+                   agents$advice[mask] <- rnorm(n, 
+                                                rep(world$state, n), 
+                                                clamp(agents$sensitivity[agents$advisor[mask]]
+                                                      + modelParams$other$adviceNoise,
+                                                      Inf))
+                   agents$advice[mask & (runif(n) < modelParams$other$badAdviceProb)] <-
+                     world$state + modelParams$other$sensitivity + 3*modelParams$other$sensitivitySD
                    return(agents)
                  },
                  getWorldStateFun = function(modelParams, world) {
@@ -152,11 +146,13 @@ for(x in c(1000))
       for(s in c(10,100)) 
         for(sSD in c(10)) 
           for(sEB in c(0.01, 0.99))
-            for(aN in c(1,100))
-              specs[[length(specs)+1]] <- list(agents=x,degree=y,decisions=z,
-                                               sensitivity=s,sensitivitySD=sSD,
-                                               startingEgoBias=sEB,
-                                               adviceNoise = aN)
+            for(aN in c(0))
+              for(bA in c(.1,.1,.5))
+                specs[[length(specs)+1]] <- list(agents=x,degree=y,decisions=z,
+                                                 sensitivity=s,sensitivitySD=sSD,
+                                                 startingEgoBias=sEB,
+                                                 adviceNoise = aN,
+                                                 badAdviceProb = bA)
 
 # Run the models
 # make sure the children can see the degree variable

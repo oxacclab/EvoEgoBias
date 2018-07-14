@@ -1,6 +1,5 @@
-# Model 7 ####
-# What happens if advice is noisy?
-# Noisy relative to sensitivity
+# Model 8 ####
+# Advice is disconnected from initial decision
 parallel <- T
 
 # Agents have direct access to one another's confidence.
@@ -99,24 +98,16 @@ runModel <- function(spec, .wd) {
                    print(paste('Selected parents for generation',world$generation))
                    return(winners)
                  },
-                 getDecisionFun = function(modelParams, agents, world, ties, initial = F) {
+                 getAdviceFun = function(modelParams, agents, world, ties) {
                    mask <- which(agents$generation == world$generation)
-                   if(initial) {
-                     # initial decision - look and see
-                     n <- length(mask)
-                     agents$initialDecision[mask] <- rnorm(n, 
-                                                           rep(world$state, n), 
-                                                           clamp(agents$sensitivity[mask],Inf))
-                   } else {
-                     # Final decision - take advice
-                     # Use vector math to do the advice taking
-                     out <- NULL
-                     noise <- rnorm(length(mask), 0, modelParams$other$adviceNoise)
-                     out <- (agents$initialDecision[mask] * agents$egoBias[mask]) + 
-                       ((1-agents$egoBias[mask]) * (agents$advice[mask] + noise))
-                     out[is.na(out)] <- agents$initialDecision[mask][is.na(out)]
-                     agents$finalDecision[mask] <- out
-                   }
+                   agents$advisor[mask] <- apply(ties, 1, function(x) sample(which(x != 0),1))
+                   # Fetch advice as a vector
+                   n <- length(mask)
+                   agents$advice[mask] <- rnorm(n, 
+                                                rep(world$state, n), 
+                                                clamp(agents$sensitivity[agents$advisor[mask]]
+                                                      + modelParams$other$adviceNoise,
+                                                      Inf))
                    return(agents)
                  },
                  getWorldStateFun = function(modelParams, world) {
