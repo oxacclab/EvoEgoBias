@@ -42,7 +42,7 @@ runModel <- function(spec, .wd) {
   data <- evoSim(agentCount = spec$agents,
                  agentDegree = spec$degree,
                  decisionCount = spec$decisions,
-                 generationCount = 2500,
+                 generationCount = 25,#00,
                  mutationChance = 0.01,
                  other = list(sensitivity = spec$sensitivity, 
                               sensitivitySD = spec$sensitivitySD,
@@ -52,9 +52,6 @@ runModel <- function(spec, .wd) {
                  makeAgentFun = function(modelParams, parents = NULL) {
                    # Inherit egoBias if there's a previous generation and we're not mutating
                    if(!is.null(parents)) {
-                     # print(paste0('id: ', parents$id,
-                     #              '; egoBias: ', round(parents$egoBias,3),
-                     #              '; fitness: ', round(parents$fitness,3)))
                      if(runif(1) < modelParams$mutationChance) {
                        # mutate
                        egoBias <- rnorm(1, parents$egoBias, 0.1)
@@ -93,10 +90,6 @@ runModel <- function(spec, .wd) {
                    winners <- sample(tickets, modelParams$agentCount, replace = T)
                    # The winners clone their egocentric discounting
                    winners <- tmp[winners,'id']
-                   #print(cor(agents$egoBias, abs(agents$fitness-.5)))
-                   # print(summary(agents[agents$id %in% winners, c('egoBias', 'fitness')]))
-                   # print(tmp[tmp$id %in% winners,])
-                   print(paste('Selected parents for generation',world$generation))
                    return(winners)
                  },
                  getAdviceFun = function(modelParams, agents, world, ties) {
