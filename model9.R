@@ -37,6 +37,7 @@ suppressWarnings(rm('results'))
 
 # Define the function
 runModel <- function(spec) {
+  print(spec)
   setwd(spec$wd)
   source('evoSim/evoSim/R/evoSim.R')
   data <- evoSim(agentCount = spec$agents,
