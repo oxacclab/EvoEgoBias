@@ -4,6 +4,8 @@ parallel <- T
 
 # Agents have direct access to one another's confidence.
 ARC <- Sys.info()[[1]] != 'Windows'
+if(ARC)
+  setwd(getwd()+'/EvoEgoBias')
 if(parallel)
   ARC <- T
 
