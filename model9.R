@@ -37,6 +37,7 @@ suppressWarnings(rm('results'))
 
 # Define the function
 runModel <- function(spec) {
+  setwd(spec$wd)
   source('evoSim/evoSim/R/evoSim.R')
   data <- evoSim(agentCount = spec$agents,
                  agentDegree = spec$degree,
@@ -144,7 +145,8 @@ for(x in c(1000))
                                                  sensitivity=s,sensitivitySD=sSD,
                                                  startingEgoBias=sEB,
                                                  adviceNoise = aN,
-                                                 badAdviceProb = bA)
+                                                 badAdviceProb = bA,
+                                                 wd = getwd())
 # Testing code for debugging parallel stuff
 rm('x','y','z','s','sSD','sEB','aN','bA')
 runModel(specs[[1]])
