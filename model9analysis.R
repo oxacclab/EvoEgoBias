@@ -16,7 +16,7 @@ for(rd in rawdata) {
   rd$agents$badAdviceProb <- rep(rd$model$other$badAdviceProb,nrow(rd$agents))
   # only take a subset because of memory limitations
   allAgents <- rbind(allAgents, rd$agents[rd$agents$generation%%50 == 1
-                 | (rd$agents$generation%%25 ==1 & rd$agents$generation < 250), ])
+                 | (rd$agents$generation%%25 == 1 & rd$agents$generation < 250), ])
 }
 
 rm('rawdata')

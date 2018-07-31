@@ -45,7 +45,7 @@ runModel <- function(spec) {
   data <- evoSim(agentCount = spec$agents,
                  agentDegree = spec$degree,
                  decisionCount = spec$decisions,
-                 generationCount = 25,#00,
+                 generationCount = 2500,
                  mutationChance = 0.01,
                  other = list(sensitivity = spec$sensitivity, 
                               sensitivitySD = spec$sensitivitySD,
@@ -188,5 +188,22 @@ print('Saving data...')
 # Save data
 write.csv(results, paste(resultsPath, 'results.csv'))
 save(rawdata, file = paste(resultsPath, 'rawdata.Rdata'))
+# Smaller datafile for stopping me running out of memory during analysis
+allAgents <- NULL
+for(rd in rawdata) {
+  rd$agents$agentCount <- rep(rd$model$agentCount,nrow(rd$agents))
+  rd$agents$agentDegree <- rep(rd$model$agentDegree,nrow(rd$agents))
+  rd$agents$decisionCount <- rep(rd$model$decisionCount,nrow(rd$agents))
+  rd$agents$modelDuration <- rep(rd$duration,nrow(rd$agents))
+  rd$agents$meanSensitivity <- rep(rd$model$other$sensitivity,nrow(rd$agents))
+  rd$agents$sdSensitivity <- rep(rd$model$other$sensitivitySD,nrow(rd$agents))
+  rd$agents$startingEgoBias <- rep(rd$model$other$startingEgoBias,nrow(rd$agents))
+  rd$agents$adviceNoise <- rep(rd$model$other$adviceNoise,nrow(rd$agents))
+  rd$agents$badAdviceProb <- rep(rd$model$other$badAdviceProb,nrow(rd$agents))
+  # only take a subset because of memory limitations
+  allAgents <- rbind(allAgents, rd$agents[rd$agents$generation%%50 == 1
+                                          | (rd$agents$generation%%25 == 1 & rd$agents$generation < 250), ])
+}
+save(allAgents, file = paste(resultsPath, 'rawdata_subset.Rdata'))
 print('...complete.')
 
