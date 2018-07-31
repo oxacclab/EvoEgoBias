@@ -151,8 +151,8 @@ for(x in c(1000))
                                                  badAdviceProb = bA,
                                                  wd = getwd())
 # Testing code for debugging parallel stuff
-rm('x','y','z','s','sSD','sEB','aN','bA')
-runModel(specs[[1]])
+# rm('x','y','z','s','sSD','sEB','aN','bA')
+# runModel(specs[[1]])
 
 # Run the models
 # make sure the children can see the degree variable
