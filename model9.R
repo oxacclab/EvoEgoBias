@@ -36,8 +36,7 @@ suppressWarnings(rm('rawdata'))
 suppressWarnings(rm('results'))
 
 # Define the function
-runModel <- function(spec, .wd) {
-  setwd(.wd)
+runModel <- function(spec) {
   source('evoSim/evoSim/R/evoSim.R')
   data <- evoSim(agentCount = spec$agents,
                  agentDegree = spec$degree,
@@ -146,20 +145,21 @@ for(x in c(1000))
                                                  startingEgoBias=sEB,
                                                  adviceNoise = aN,
                                                  badAdviceProb = bA)
+# Testing code for debugging parallel stuff
+rm('x','y','z','s','sSD','sEB','aN','bA')
+runModel(specs[[1]],getwd())
 
 # Run the models
 # make sure the children can see the degree variable
 
 # Run parallel repetitions of the model with these settings
-.wd <- getwd()
 startTime <- Sys.time()
 if(!ARC) {
-  degreeResults <- lapply(specs, runModel, .wd)
+  degreeResults <- lapply(specs, runModel)
 } else {
   print('Executing parallel operations...')
-  degreeResults <- parLapply(cl, specs, runModel, .wd)
+  degreeResults <- parLapply(cl, specs, runModel)
 }
-
 print('...combining results...')
 # Join up results
 for(res in degreeResults) {
