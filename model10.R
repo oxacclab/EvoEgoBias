@@ -202,7 +202,7 @@ for(modelNumber in 1:3) {
                                                    badAdviceProb = bA,
                                                    wd = getwd())
   
-  if(modelNumer == 1)
+  if(modelNumber == 1)
     specs$getAdviceFun <- NULL
   else
     specs$getAdviceFun = adviceFunctions[[modelNumber-1]]
