@@ -193,7 +193,7 @@ for(modelNumber in 1:3) {
         for(s in c(10,100)) 
           for(sSD in c(10)) 
             for(sEB in c(0.01, 0.99))
-              for(aN in c(0))
+              for(aN in c(0, 10))
                 for(bA in c(.1,.1,.5))
                   specs[[length(specs)+1]] <- list(agents=x,degree=y,decisions=z,
                                                    sensitivity=s,sensitivitySD=sSD,
@@ -237,9 +237,6 @@ for(modelNumber in 1:3) {
   print(paste0('...complete.'))
   print(Sys.time() - startTime)
   
-  # Cleanup
-  if(ARC)
-    stopCluster(cl)
   
   print('Saving data...')
   # Save data
@@ -265,5 +262,8 @@ for(modelNumber in 1:3) {
   print('...data saved.')
 }
 
+# Cleanup
+if(ARC)
+  stopCluster(cl)
 print('Complete.')
 
