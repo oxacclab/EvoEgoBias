@@ -202,11 +202,9 @@ for(modelNumber in 1:3) {
                                                    badAdviceProb = bA,
                                                    wd = getwd())
   
-  
-  for(spec in specs)
-    spec$getAdviceFun <- ifelse(modelNumber > length(adviceFunctions), 
-                                NULL, 
-                                adviceFunctions[[modelNumber]])
+  if(modelNumber <= length(adviceFunctions))
+    for(spec in specs)
+      spec$getAdviceFun <- adviceFunctions[[modelNumber]]
   
   # Testing code for debugging parallel stuff
   # rm('x','y','z','s','sSD','sEB','aN','bA')
