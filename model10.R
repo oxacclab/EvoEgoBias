@@ -202,18 +202,17 @@ for(modelNumber in 1:3) {
                                                    badAdviceProb = bA,
                                                    wd = getwd())
   
-  if(modelNumber > length(adviceFunctions))
-    specs$getAdviceFun <- NULL
-  else
-    specs$getAdviceFun <- adviceFunctions[[modelNumber]]
+  
+  for(spec in specs)
+    spec$getAdviceFun <- ifelse(modelNumber > length(adviceFunctions), 
+                                NULL, 
+                                adviceFunctions[[modelNumber]])
   
   # Testing code for debugging parallel stuff
   # rm('x','y','z','s','sSD','sEB','aN','bA')
   # runModel(specs[[1]])
-  specs <- specs[1:20]
   
   # Run the models
-  # make sure the children can see the degree variable
   
   # Run parallel repetitions of the model with these settings
   startTime <- Sys.time()
