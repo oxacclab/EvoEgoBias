@@ -47,7 +47,7 @@ runModel <- function(spec) {
   data <- evoSim(agentCount = spec$agents,
                  agentDegree = spec$degree,
                  decisionCount = spec$decisions,
-                 generationCount = 2500,
+                 generationCount = 25,#00,
                  mutationChance = 0.01,
                  other = list(sensitivity = spec$sensitivity, 
                               sensitivitySD = spec$sensitivitySD,
@@ -205,11 +205,12 @@ for(modelNumber in 1:3) {
   if(modelNumber > length(adviceFunctions))
     specs$getAdviceFun <- NULL
   else
-    specs$getAdviceFun = adviceFunctions[[modelNumber]]
+    specs$getAdviceFun <- adviceFunctions[[modelNumber]]
   
   # Testing code for debugging parallel stuff
   # rm('x','y','z','s','sSD','sEB','aN','bA')
   # runModel(specs[[1]])
+  specs <- specs[1]
   
   # Run the models
   # make sure the children can see the degree variable
