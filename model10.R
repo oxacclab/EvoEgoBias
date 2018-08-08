@@ -209,7 +209,7 @@ for(modelNumber in 1:3) {
   # Testing code for debugging parallel stuff
   # rm('x','y','z','s','sSD','sEB','aN','bA')
   # runModel(specs[[1]])
-  specs <- specs[1:22]
+  specs <- specs[1:24]
   
   # Run the models
   
