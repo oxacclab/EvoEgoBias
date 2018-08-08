@@ -210,7 +210,7 @@ for(modelNumber in 1:3) {
   # Testing code for debugging parallel stuff
   # rm('x','y','z','s','sSD','sEB','aN','bA')
   # runModel(specs[[1]])
-  specs <- specs
+  specs <- specs[1:20]
   
   # Run the models
   # make sure the children can see the degree variable
