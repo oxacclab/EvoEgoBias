@@ -47,7 +47,7 @@ runModel <- function(spec) {
   data <- evoSim(agentCount = spec$agents,
                  agentDegree = spec$degree,
                  decisionCount = spec$decisions,
-                 generationCount = 25,#00,
+                 generationCount = 2500,
                  mutationChance = 0.01,
                  other = list(sensitivity = spec$sensitivity, 
                               sensitivitySD = spec$sensitivitySD,
@@ -209,7 +209,7 @@ for(modelNumber in 1:3) {
   # Testing code for debugging parallel stuff
   # rm('x','y','z','s','sSD','sEB','aN','bA')
   # runModel(specs[[1]])
-  specs <- specs[1:24]
+  #specs <- specs[1:24]
   
   # Run the models
   
