@@ -240,7 +240,9 @@ for(modelNumber in 1:3) {
   print('Saving data...')
   # Save data
   write.csv(results, paste(resultsPath, 'results.csv'))
+  print('...saved csv...')
   save(rawdata, file = paste(resultsPath, 'rawdata.Rdata'))
+  print('...saved rawdata...')
   # Smaller datafile for stopping me running out of memory during analysis
   allAgents <- NULL
   for(rd in rawdata) {
@@ -258,6 +260,7 @@ for(modelNumber in 1:3) {
                                             | (rd$agents$generation%%25 == 1 & rd$agents$generation < 250), ])
   }
   save(allAgents, file = paste(resultsPath, 'rawdata_subset.Rdata'))
+  print('...saved subset...')
   print('...data saved.')
 }
 
