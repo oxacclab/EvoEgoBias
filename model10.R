@@ -236,7 +236,8 @@ for(modelNumber in 1:3) {
   print(paste0('...complete.'))
   print(Sys.time() - startTime)
   
-  
+  print('Estimated data size:')
+  print(object.size(rawdata), units = 'auto')
   print('Saving data...')
   # Save data
   write.csv(results, paste(resultsPath, 'results.csv'))
