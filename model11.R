@@ -118,11 +118,10 @@ runModel <- function(spec) {
                    return(agents)
                  },
                  getWorldStateFun = function(modelParams, world) {
-                   x <- round(runif(1,0,100))
-                   if(x==50)
-                     return(getWorldStateFun(modelParams, world))
-                   else
-                     return(x)
+                   x = 50
+                   while(x==50)
+                     x <- round(runif(1,0,100))
+                   return(x)
                  },
                  getFitnessFun <- function(modelParams, agents, world, ties) {
                    mask <- which(agents$generation==world$generation)
