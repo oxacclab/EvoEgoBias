@@ -42,7 +42,7 @@ ggplot(allAgents,
                size = 1, alpha = 0.25) +
   stat_summary(geom = 'errorbar', fun.data = mean_cl_boot, size = 0.25) +
   scale_y_continuous(limits = c(0,1)) +
-  facet_grid(startingEgoBias ~ .) +
+  facet_grid(startingEgoBias ~ ., labeller = label_both) +
   style 
 
 # fitness
