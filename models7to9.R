@@ -152,7 +152,8 @@ badAdviceFun <- function(modelParams, agents, world, ties) {
 
 adviceFunctions <- c(noisyAdviceFun, badAdviceFun)
 
-for(modelNumber in 1:3) {
+#for(modelNumber in 1:3) {
+for(modelNumber in 3) {
   # Storage path for results
   resultsPath <- ifelse(ARC,'results/','results/')
   time <- format(Sys.time(), "%F_%H-%M-%S")
