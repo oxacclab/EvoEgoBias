@@ -47,7 +47,7 @@ runModel <- function(spec) {
   data <- evoSim(agentCount = spec$agents,
                  agentDegree = spec$degree,
                  decisionCount = spec$decisions,
-                 generationCount = 2500,
+                 generationCount = 1000,
                  mutationChance = 0.01,
                  other = list(sensitivity = spec$sensitivity, 
                               sensitivitySD = spec$sensitivitySD,
@@ -96,42 +96,10 @@ runModel <- function(spec) {
                    winners <- tmp[winners,'id']
                    return(winners)
                  },
-                 getDecisionFun = function(modelParams, agents, world, ties, initial = F) {
-                   mask <- which(agents$generation == world$generation)
-                   if(initial) {
-                     # initial decision - look and see
-                     n <- length(mask)
-                     agents$initialDecision[mask] <- rnorm(n, 
-                                                           rep(world$state, n), 
-                                                           clamp(agents$sensitivity[mask],Inf))
-                   } else {
-                     # Final decision - take advice
-                     # Use vector math to do the advice taking
-                     out <- NULL
-                     noise <- rnorm(length(mask), 0, modelParams$other$adviceNoise)
-                     out <- (agents$initialDecision[mask] * agents$egoBias[mask]) + 
-                       ((1-agents$egoBias[mask]) * (agents$advice[mask] + noise))
-                     out <- clamp(out, 100)
-                     out[is.na(out)] <- agents$initialDecision[mask][is.na(out)]
-                     agents$finalDecision[mask] <- out
-                   }
-                   return(agents)
-                 },
-                 getWorldStateFun = function(modelParams, world) {
-                   x = 50
-                   while(x==50)
-                     x <- round(runif(1,0,100))
-                   return(x)
-                 },
-                 getFitnessFun <- function(modelParams, agents, world, ties) {
-                   mask <- which(agents$generation==world$generation)
-                   # fitness (error) increases by 1 for an incorrect answer
-                   answer <- world$state > 50
-                   answers <- agents$finalDecision[mask] > 50
-                   agents$fitness[mask] <- agents$fitness[mask] + as.numeric(answers==answer)
-                   return(agents)
-                 },
-                 getAdviceFun = spec$getAdviceFun)
+                 getAdviceFun = spec$getAdviceFun,
+                 getWorldStateFun = spec$getWorldStateFun,
+                 getDecisionFun = spec$getDecisionFun,
+                 getFitnessFun = spec$getFitnessFun)
   # save results
   n <- length(unique(data$agents$generation))
   results <- data.frame(generation = unique(data$agents$generation), 
@@ -153,8 +121,101 @@ runModel <- function(spec) {
   return(list(rawdata = rawdata, results = results))
 }
 
-# Advice functions - there's noisy advice and bad advice
+# Decision functions - uncapped continuous (default), capped continuous, and discrete ####
+uncappedDecisionFun <- function(modelParams, agents, world, ties, initial = F) {
+  adviceNoise <- ifelse(modelParams$other$manipulation, modelParams$other$adviceNoise, 0)
+  mask <- which(agents$generation == world$generation)
+  if(initial) {
+    # initial decision - look and see
+    n <- length(mask)
+    agents$initialDecision[mask] <- rnorm(n, 
+                                          rep(world$state, n), 
+                                          clamp(agents$sensitivity[mask],Inf))
+  } else {
+    # Final decision - take advice
+    # Use vector math to do the advice taking
+    out <- NULL
+    noise <- rnorm(length(mask), 0, adviceNoise)
+    out <- (agents$initialDecision[mask] * agents$egoBias[mask]) + 
+      ((1-agents$egoBias[mask]) * (agents$advice[mask] + noise))
+    out <- clamp(out, 100)
+    out[is.na(out)] <- agents$initialDecision[mask][is.na(out)]
+    agents$finalDecision[mask] <- out
+  }
+  return(agents)
+}
+
+cappedDecisionFun <- function(modelParams, agents, world, ties, initial = F) {
+  adviceNoise <- ifelse(modelParams$other$manipulation, modelParams$other$adviceNoise, 0)
+  mask <- which(agents$generation == world$generation)
+  if(initial) {
+    # initial decision - look and see
+    n <- length(mask)
+    agents$initialDecision[mask] <- rnorm(n, 
+                                          rep(world$state, n), 
+                                          clamp(agents$sensitivity[mask],Inf))
+  } else {
+    # Final decision - take advice
+    # Use vector math to do the advice taking
+    out <- NULL
+    noise <- rnorm(length(mask), 0, adviceNoise)
+    out <- (agents$initialDecision[mask] * agents$egoBias[mask]) + 
+      ((1-agents$egoBias[mask]) * (agents$advice[mask] + noise))
+    out <- clamp(out, 100)
+    out[is.na(out)] <- agents$initialDecision[mask][is.na(out)]
+    agents$finalDecision[mask] <- out
+  }
+  return(agents)
+}
+  
+discreteDecisionFun <- function(modelParams, agents, world, ties, initial = F) {
+  adviceNoise <- ifelse(modelParams$other$manipulation, modelParams$other$adviceNoise, 0)
+  mask <- which(agents$generation == world$generation)
+  if(initial) {
+    # initial decision - look and see
+    n <- length(mask)
+    agents$initialDecision[mask] <- rnorm(n, 
+                                          rep(world$state, n), 
+                                          clamp(agents$sensitivity[mask],Inf))
+  } else {
+    # Final decision - take advice
+    # Use vector math to do the advice taking
+    out <- NULL
+    noise <- rnorm(length(mask), 0, adviceNoise)
+    out <- (agents$initialDecision[mask] * agents$egoBias[mask]) + 
+      ((1-agents$egoBias[mask]) * (agents$advice[mask] + noise))
+    out <- clamp(out, 100)
+    out[is.na(out)] <- agents$initialDecision[mask][is.na(out)]
+    agents$finalDecision[mask] <- out
+  }
+  return(agents)
+}
+
+# World state functions - return 50 and return 0-49|51-100 ####
+staticWorldStateFun = function(modelParams, world) {
+  return(50)
+}
+
+variedWorldStateFun = function(modelParams, world) {
+    x = 50
+    while(x==50)
+      x <- round(runif(1,0,100))
+    return(x)
+}
+
+# Fitness functions - continuous (default) or categorical ####
+categoricalFitnessFun <- function(modelParams, agents, world, ties) {
+  mask <- which(agents$generation==world$generation)
+  # fitness (error) increases by 1 for an incorrect answer
+  answer <- world$state > 50
+  answers <- agents$finalDecision[mask] > 50
+  agents$fitness[mask] <- agents$fitness[mask] + as.numeric(answers==answer)
+  return(agents)
+}
+
+# Advice functions - there's noisy advice and bad advice ####
 noisyAdviceFun <- function(modelParams, agents, world, ties) {
+  adviceNoise <- ifelse(modelParams$other$manipulation, .1, 0)
   mask <- which(agents$generation == world$generation)
   agents$advisor[mask] <- apply(ties, 1, function(x) sample(which(x != 0),1))
   # Fetch advice as a vector
@@ -162,13 +223,14 @@ noisyAdviceFun <- function(modelParams, agents, world, ties) {
   agents$advice[mask] <- rnorm(n, 
                                rep(world$state, n), 
                                clamp(agents$sensitivity[agents$advisor[mask]]
-                                     + modelParams$other$adviceNoise,
+                                     + adviceNoise,
                                      Inf))
   agents$advice[mask] <- clamp(agents$advice[mask], 100)
   return(agents)
 }
 
 badAdviceFun <- function(modelParams, agents, world, ties) {
+  adviceNoise <- ifelse(modelParams$other$manipulation, .1, 0)
   mask <- which(agents$generation == world$generation)
   agents$advisor[mask] <- apply(ties, 1, function(x) sample(which(x != 0),1))
   # Fetch advice as a vector
@@ -176,7 +238,7 @@ badAdviceFun <- function(modelParams, agents, world, ties) {
   agents$advice[mask] <- rnorm(n, 
                                rep(world$state, n), 
                                clamp(agents$sensitivity[agents$advisor[mask]]
-                                     + modelParams$other$adviceNoise,
+                                     + adviceNoise,
                                      Inf))
   agents$advice[mask & (runif(n) < modelParams$other$badAdviceProb)] <-
     world$state + modelParams$other$sensitivity + 3*modelParams$other$sensitivitySD
@@ -184,97 +246,133 @@ badAdviceFun <- function(modelParams, agents, world, ties) {
   return(agents)
 }
 
-adviceFunctions <- c(noisyAdviceFun, badAdviceFun)
-
-for(modelNumber in 1:3) {
-  # Storage path for results
-  resultsPath <- ifelse(ARC,'results/','results/')
-  time <- format(Sys.time(), "%F_%H-%M-%S")
-  resultsPath <- paste0(resultsPath,'mdl',modelNumber,'_',time)
-  
-  # Clear the result storage variables
-  suppressWarnings(rm('rawdata'))
-  suppressWarnings(rm('results'))
-  
-  # Parameter space to explore
-  specs <- list()
-  for(x in c(1000)) 
-    for(y in c(10)) 
-      for(z in c(30)) 
-        for(s in c(10,100)) 
-          for(sSD in c(10)) 
-            for(sEB in c(0.01, 0.99))
-              for(aN in c(0, 10))
-                for(bA in c(.1,.1,.5))
-                  specs[[length(specs)+1]] <- list(agents=x,degree=y,decisions=z,
-                                                   sensitivity=s,sensitivitySD=sSD,
-                                                   startingEgoBias=sEB,
-                                                   adviceNoise = aN,
-                                                   badAdviceProb = bA,
-                                                   wd = getwd())
-  
-  if(modelNumber <= length(adviceFunctions))
-    for(spec in specs)
-      spec$getAdviceFun <- adviceFunctions[[modelNumber]]
-  
-  # Testing code for debugging parallel stuff
-  # rm('x','y','z','s','sSD','sEB','aN','bA')
-  # runModel(specs[[1]])
-  #specs <- specs[1:24]
-  
-  # Run the models
-  
-  # Run parallel repetitions of the model with these settings
-  startTime <- Sys.time()
-  if(!ARC) {
-    degreeResults <- lapply(specs, runModel)
-  } else {
-    print('Executing parallel operations...')
-    degreeResults <- parLapply(cl, specs, runModel)
+for(decisionType in 1:3) {
+  for(adviceType in 1:3) {
+    # Storage path for results
+    resultsPath <- ifelse(ARC,'results/','results/')
+    time <- format(Sys.time(), "%F_%H-%M-%S")
+    resultsPath <- paste0(resultsPath,'d',decisionType,'a',adviceType,'_',time)
+    
+    # Clear the result storage variables
+    suppressWarnings(rm('rawdata'))
+    suppressWarnings(rm('results'))
+    
+    # Parameter space to explore
+    specs <- list()
+    for(s in c(10, 100))
+      for(x in c(F, T))
+        specs[[length(specs)+1]] <- list(agents=1000,degree=10,decisions=30,
+                                         sensitivity=s,sensitivitySD=10,
+                                         startingEgoBias=.99,
+                                         adviceNoise=0,
+                                         manipulation=x,
+                                         wd = getwd())
+    
+    if(decisionType == 1) {
+      for(i in 1:length(specs)) {
+        specs[[i]]$getWorldStateFun <- staticWorldStateFun
+        specs[[i]]$getDecisionFun <- uncappedDecisionFun
+        specs[[i]]$shortDesc <- 'Uncapped decisions'
+      }
+    } else if(decisionType == 2) {
+      for(i in 1:length(specs)) {
+        specs[[i]]$getWorldStateFun <- staticWorldStateFun
+        specs[[i]]$getDecisionFun <- cappedDecisionFun
+        specs[[i]]$shortDesc <- 'Capped decisions'
+      }
+    } else {
+      for(i in 1:length(specs)) {
+        specs[[i]]$getWorldStateFun <- variedWorldStateFun
+        specs[[i]]$getDecisionFun <- discreteDecisionFun
+        specs[[i]]$getFitnessFun <- categoricalFitnessFun
+        specs[[i]]$shortDesc <- 'Categorical decisions'
+      }
+    }
+    
+    if(adviceType == 1) {
+      for(i in 1:length(specs)) {
+        specs[[i]]$getAdviceFun <- noisyAdviceFun
+        specs[[i]]$shortDesc <- paste(specs[[i]]$shortDesc, 'with noisy advice')
+      }
+    } else if(adviceType == 2) {
+      for(i in 1:length(specs)) {
+        specs[[i]]$getAdviceFun <- badAdviceFun
+        specs[[i]]$shortDesc <- paste(specs[[i]]$shortDesc, 'with bad advice')
+      }
+    } else {
+      for(i in 1:length(specs)) {
+        # getAdviceFun is NULL
+        specs[[i]]$adviceNoise <- 10
+        specs[[i]]$shortDesc <- paste(specs[[i]]$shortDesc, 'with noisy communication')
+      }
+    }
+    
+    for(i in 1:length(specs))
+      specs[[i]]$shortDesc <- paste(specs[[i]]$shortDesc, 
+                                    ifelse(specs[[i]]$manipulation, 
+                                           '(manipulation on)', 
+                                           '(manipuation off)'))
+    
+    # Testing code for debugging parallel stuff
+    # rm('x','y','z','s','sSD','sEB','aN','bA')
+    # runModel(specs[[1]])
+    #specs <- specs[1:24]
+    
+    # Run the models
+    
+    # Run parallel repetitions of the model with these settings
+    startTime <- Sys.time()
+    if(!ARC) {
+      degreeResults <- lapply(specs, runModel)
+    } else {
+      print('Executing parallel operations...')
+      degreeResults <- parLapply(cl, specs, runModel)
+    }
+    print('...combining results...')
+    # Join up results
+    for(res in degreeResults) {
+      # if(!exists('results'))
+      #   results <- res$results
+      # else
+      #   results <- rbind(results, res$results)
+      if(!exists('rawdata'))
+        rawdata <- list(res$rawdata)
+      else
+        rawdata[[length(rawdata)+1]] <- res$rawdata
+    }
+    print(paste0('...complete.'))
+    print(Sys.time() - startTime)
+    
+    print('Estimated data size:')
+    print(object.size(rawdata), units = 'auto')
+    print('Saving data...')
+    # Save data
+    # write.csv(results, paste(resultsPath, 'results.csv'))
+    # print('...saved csv...')
+    save(rawdata, file = paste(resultsPath, 'rawdata.Rdata'))
+    print('...saved rawdata...')
+    # Smaller datafile for stopping me running out of memory during analysis
+    allAgents <- NULL
+    for(rd in rawdata) {
+      rd$agents$agentCount <- rep(rd$model$agentCount,nrow(rd$agents))
+      rd$agents$agentDegree <- rep(rd$model$agentDegree,nrow(rd$agents))
+      rd$agents$decisionCount <- rep(rd$model$decisionCount,nrow(rd$agents))
+      rd$agents$modelDuration <- rep(rd$duration,nrow(rd$agents))
+      rd$agents$meanSensitivity <- rep(rd$model$other$sensitivity,nrow(rd$agents))
+      rd$agents$sdSensitivity <- rep(rd$model$other$sensitivitySD,nrow(rd$agents))
+      rd$agents$startingEgoBias <- rep(rd$model$other$startingEgoBias,nrow(rd$agents))
+      rd$agents$manipulation <- rep(rd$model$other$manipulation,nrow(rd$agents))
+      rd$agents$description <- rep(rd$model$other$shortDesc, nrow(rd$agents))
+      # only take a subset because of memory limitations
+      allAgents <- rbind(allAgents, rd$agents[rd$agents$generation%%50 == 1
+                                              | (rd$agents$generation%%25 == 1 & rd$agents$generation < 250), ])
+    }
+    save(allAgents, file = paste(resultsPath, 'rawdata_subset.Rdata'))
+    print('...saved subset...')
+    print('...data saved.')
   }
-  print('...combining results...')
-  # Join up results
-  for(res in degreeResults) {
-    if(!exists('results'))
-      results <- res$results
-    else
-      results <- rbind(results, res$results)
-    if(!exists('rawdata'))
-      rawdata <- list(res$rawdata)
-    else
-      rawdata[[length(rawdata)+1]] <- res$rawdata
-  }
-  print(paste0('...complete.'))
-  print(Sys.time() - startTime)
-  
-  print('Estimated data size:')
-  print(object.size(rawdata), units = 'auto')
-  print('Saving data...')
-  # Save data
-  write.csv(results, paste(resultsPath, 'results.csv'))
-  print('...saved csv...')
-  save(rawdata, file = paste(resultsPath, 'rawdata.Rdata'))
-  print('...saved rawdata...')
-  # Smaller datafile for stopping me running out of memory during analysis
-  allAgents <- NULL
-  for(rd in rawdata) {
-    rd$agents$agentCount <- rep(rd$model$agentCount,nrow(rd$agents))
-    rd$agents$agentDegree <- rep(rd$model$agentDegree,nrow(rd$agents))
-    rd$agents$decisionCount <- rep(rd$model$decisionCount,nrow(rd$agents))
-    rd$agents$modelDuration <- rep(rd$duration,nrow(rd$agents))
-    rd$agents$meanSensitivity <- rep(rd$model$other$sensitivity,nrow(rd$agents))
-    rd$agents$sdSensitivity <- rep(rd$model$other$sensitivitySD,nrow(rd$agents))
-    rd$agents$startingEgoBias <- rep(rd$model$other$startingEgoBias,nrow(rd$agents))
-    rd$agents$adviceNoise <- rep(rd$model$other$adviceNoise,nrow(rd$agents))
-    rd$agents$badAdviceProb <- rep(rd$model$other$badAdviceProb,nrow(rd$agents))
-    # only take a subset because of memory limitations
-    allAgents <- rbind(allAgents, rd$agents[rd$agents$generation%%50 == 1
-                                            | (rd$agents$generation%%25 == 1 & rd$agents$generation < 250), ])
-  }
-  save(allAgents, file = paste(resultsPath, 'rawdata_subset.Rdata'))
-  print('...saved subset...')
-  print('...data saved.')
 }
+
 
 # Cleanup
 if(ARC)
