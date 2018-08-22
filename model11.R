@@ -19,6 +19,16 @@ if(!require('parallel')) {
   library(parallel)
 }
 
+if(!require('tidyverse')) {
+  install.packages('tidyverse')
+  library(tidyverse)
+}
+
+style <- theme_light() +
+  theme(legend.position = 'top',
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor = element_blank())
+
 parallel <- T
 
 # Agents have direct access to one another's confidence.
@@ -161,7 +171,7 @@ cappedDecisionFun <- function(modelParams, agents, world, ties, initial = F) {
     out <- NULL
     noise <- rnorm(length(mask), 0, adviceNoise)
     out <- (agents$initialDecision[mask] * agents$egoBias[mask]) + 
-      ((1-agents$egoBias[mask]) * (agents$advice[mask] + noise))
+      ((1-agents$egoBias[mask]) * (clamp(agents$advice[mask], 100) + noise))
     out <- clamp(out, 100)
     out[is.na(out)] <- agents$initialDecision[mask][is.na(out)]
     agents$finalDecision[mask] <- out
@@ -216,7 +226,7 @@ categoricalFitnessFun <- function(modelParams, agents, world, ties) {
 
 # Advice functions - there's noisy advice and bad advice ####
 noisyAdviceFun <- function(modelParams, agents, world, ties) {
-  adviceNoise <- ifelse(modelParams$other$manipulation, .1, 0)
+  adviceNoise <- ifelse(modelParams$other$manipulation, 10, 0)
   mask <- which(agents$generation == world$generation)
   agents$advisor[mask] <- apply(ties, 1, function(x) sample(which(x != 0),1))
   # Fetch advice as a vector
@@ -231,19 +241,19 @@ noisyAdviceFun <- function(modelParams, agents, world, ties) {
 }
 
 badAdviceFun <- function(modelParams, agents, world, ties) {
-  adviceNoise <- ifelse(modelParams$other$manipulation, .1, 0)
+  badAdviceProb <- ifelse(modelParams$other$manipulation, .1, 0)
   mask <- which(agents$generation == world$generation)
   agents$advisor[mask] <- apply(ties, 1, function(x) sample(which(x != 0),1))
   # Fetch advice as a vector
   n <- length(mask)
   agents$advice[mask] <- rnorm(n, 
                                rep(world$state, n), 
-                               clamp(agents$sensitivity[agents$advisor[mask]]
-                                     + adviceNoise,
-                                     Inf))
-  agents$advice[mask & (runif(n) < modelParams$other$badAdviceProb)] <-
-    world$state + modelParams$other$sensitivity + 3*modelParams$other$sensitivitySD
-  agents$advice[mask] <- clamp(agents$advice[mask], 100)
+                               clamp(agents$sensitivity[agents$advisor[mask]],Inf))
+  badActors <- mask & (runif(n) < badAdviceProb)
+  # bad actors give advice as certain in the other direction
+  agents$advice[badActors] <- ifelse(agents$advice[badActors] < 50, 
+                                     50+3*modelParams$other$sensitivity, 
+                                     -(50+3*modelParams$other$sensitivity)) 
   return(agents)
 }
 
@@ -290,16 +300,19 @@ for(decisionType in 1:3) {
       }
     }
     
+    # Noisy advice = advice made with +10sd on error
     if(adviceType == 1) {
       for(i in 1:length(specs)) {
         specs[[i]]$getAdviceFun <- noisyAdviceFun
         specs[[i]]$shortDesc <- paste(specs[[i]]$shortDesc, 'with noisy advice')
       }
+    # Bad advice = advice which is 3*mean sensitivity in the opposite direction
     } else if(adviceType == 2) {
       for(i in 1:length(specs)) {
         specs[[i]]$getAdviceFun <- badAdviceFun
         specs[[i]]$shortDesc <- paste(specs[[i]]$shortDesc, 'with bad advice')
       }
+    # Noisy communication means noise is added at evalutation time rather than decision time
     } else {
       for(i in 1:length(specs)) {
         # getAdviceFun is NULL
@@ -307,12 +320,6 @@ for(decisionType in 1:3) {
         specs[[i]]$shortDesc <- paste(specs[[i]]$shortDesc, 'with noisy communication')
       }
     }
-    
-    for(i in 1:length(specs))
-      specs[[i]]$shortDesc <- paste(specs[[i]]$shortDesc, 
-                                    ifelse(specs[[i]]$manipulation, 
-                                           '(manipulation on)', 
-                                           '(manipuation off)'))
     
     # Testing code for debugging parallel stuff
     # rm('x','y','z','s','sSD','sEB','aN','bA')
@@ -370,6 +377,21 @@ for(decisionType in 1:3) {
     }
     save(allAgents, file = paste(resultsPath, 'rawdata_subset.Rdata'))
     print('...saved subset...')
+    
+    # Plot
+    ggplot(allAgents, 
+           aes(x=generation, y=egoBias, 
+               colour = manipulation)) +
+      geom_hline(yintercept = 0.5, linetype = 'dashed') +
+      stat_summary(geom = 'point', fun.y = mean, size = 3, alpha = 0.25) +
+      stat_summary(fun.data = mean_cl_boot, fun.args=(conf.int = .99), geom = 'errorbar', size = 1) +
+      scale_y_continuous(limits = c(0,1)) +
+      facet_wrap(~meanSensitivity, labeller = label_both) +
+      labs(title = allAgents$description[1]) +
+      style 
+    ggsave(paste(resultsPath, 'graph.png'))
+    
+    print('...saved graph...')
     print('...data saved.')
   }
 }
