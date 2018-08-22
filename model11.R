@@ -53,7 +53,8 @@ runModel <- function(spec) {
                               sensitivitySD = spec$sensitivitySD,
                               startingEgoBias = spec$startingEgoBias,
                               adviceNoise = spec$adviceNoise,
-                              badAdviceProb = spec$badAdviceProb),
+                              manipulation = spec$manipulation,
+                              shortDesc = spec$shortDesc),
                  makeAgentFun = function(modelParams, parents = NULL) {
                    # Inherit egoBias if there's a previous generation and we're not mutating
                    if(!is.null(parents)) {
