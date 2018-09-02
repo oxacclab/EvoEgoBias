@@ -258,7 +258,7 @@ badAdviceFun <- function(modelParams, agents, world, ties) {
 }
 
 for(decisionType in 1:3) {
-  for(adviceType in 1:3) {
+  for(adviceType in 1){#:3) {
     # Storage path for results
     resultsPath <- ifelse(ARC,'results/','results/')
     time <- format(Sys.time(), "%F_%H-%M-%S")
@@ -271,12 +271,12 @@ for(decisionType in 1:3) {
     # Parameter space to explore
     specs <- list()
     for(s in c(10, 100))
-      for(x in c(F, T))
+      #for(x in c(F, T))
         specs[[length(specs)+1]] <- list(agents=1000,degree=10,decisions=30,
                                          sensitivity=s,sensitivitySD=10,
                                          startingEgoBias=.99,
                                          adviceNoise=0,
-                                         manipulation=x,
+                                         manipulation=F,#x,
                                          wd = getwd())
     
     if(decisionType == 1) {
