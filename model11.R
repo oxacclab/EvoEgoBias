@@ -19,9 +19,9 @@ if(!require('parallel')) {
   library(parallel)
 }
 
-if(!require('tidyverse')) {
-  install.packages(repos="http://cran.r-project.org",'tidyverse')
-  library(tidyverse)
+if(!require('ggplot2')) {
+  install.packages(repos="http://cran.r-project.org",'ggplot2')
+  library(ggplot2)
 }
 
 style <- theme_light() +
