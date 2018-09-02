@@ -20,7 +20,7 @@ if(!require('parallel')) {
 }
 
 if(!require('tidyverse')) {
-  install.packages('tidyverse')
+  install.packages(repos="http://cran.r-project.org",'tidyverse')
   library(tidyverse)
 }
 
