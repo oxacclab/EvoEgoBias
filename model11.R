@@ -31,7 +31,7 @@ style <- theme_light() +
 
 parallel <- T
 
-# Agents have direct access to one another's confidence.
+
 ARC <- Sys.info()[[1]] != 'Windows'
 if(ARC)
   setwd(paste0(getwd(), '/EvoEgoBias'))
@@ -92,7 +92,7 @@ runModel <- function(spec) {
                    # the others get weighted by relative fitness which are transformed to +ve values
                    tmp$fitness <- tmp$fitness - min(tmp$fitness) + 1
                    # scale appropriately
-                   while(any(tmp$fitness < 10))
+                   while(any(abs(tmp$fitness) < 10))
                      tmp$fitness <- tmp$fitness * 10
                    # and round off
                    tmp$fitness <- round(tmp$fitness)
@@ -149,7 +149,7 @@ uncappedDecisionFun <- function(modelParams, agents, world, ties, initial = F) {
     noise <- rnorm(length(mask), 0, adviceNoise)
     out <- (agents$initialDecision[mask] * agents$egoBias[mask]) + 
       ((1-agents$egoBias[mask]) * (agents$advice[mask] + noise))
-    out <- clamp(out, 100)
+    #out <- clamp(out, 100)
     out[is.na(out)] <- agents$initialDecision[mask][is.na(out)]
     agents$finalDecision[mask] <- out
   }
@@ -172,29 +172,6 @@ cappedDecisionFun <- function(modelParams, agents, world, ties, initial = F) {
     noise <- rnorm(length(mask), 0, adviceNoise)
     out <- (agents$initialDecision[mask] * agents$egoBias[mask]) + 
       ((1-agents$egoBias[mask]) * (clamp(agents$advice[mask], 100) + noise))
-    out <- clamp(out, 100)
-    out[is.na(out)] <- agents$initialDecision[mask][is.na(out)]
-    agents$finalDecision[mask] <- out
-  }
-  return(agents)
-}
-  
-discreteDecisionFun <- function(modelParams, agents, world, ties, initial = F) {
-  adviceNoise <- ifelse(modelParams$other$manipulation, modelParams$other$adviceNoise, 0)
-  mask <- which(agents$generation == world$generation)
-  if(initial) {
-    # initial decision - look and see
-    n <- length(mask)
-    agents$initialDecision[mask] <- rnorm(n, 
-                                          rep(world$state, n), 
-                                          clamp(agents$sensitivity[mask],Inf))
-  } else {
-    # Final decision - take advice
-    # Use vector math to do the advice taking
-    out <- NULL
-    noise <- rnorm(length(mask), 0, adviceNoise)
-    out <- (agents$initialDecision[mask] * agents$egoBias[mask]) + 
-      ((1-agents$egoBias[mask]) * (agents$advice[mask] + noise))
     out <- clamp(out, 100)
     out[is.na(out)] <- agents$initialDecision[mask][is.na(out)]
     agents$finalDecision[mask] <- out
@@ -294,7 +271,7 @@ for(decisionType in 1:3) {
     } else {
       for(i in 1:length(specs)) {
         specs[[i]]$getWorldStateFun <- variedWorldStateFun
-        specs[[i]]$getDecisionFun <- discreteDecisionFun
+        specs[[i]]$getDecisionFun <- uncappedDecisionFun
         specs[[i]]$getFitnessFun <- categoricalFitnessFun
         specs[[i]]$shortDesc <- 'Categorical decisions'
       }
