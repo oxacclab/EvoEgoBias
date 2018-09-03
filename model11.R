@@ -250,7 +250,7 @@ for(decisionType in 1:3) {
     for(s in c(10, 100))
       #for(x in c(F, T))
         specs[[length(specs)+1]] <- list(agents=1000,degree=10,decisions=30,
-                                         sensitivity=s,sensitivitySD=10,
+                                         sensitivity=s,sensitivitySD=s,
                                          startingEgoBias=.99,
                                          adviceNoise=0,
                                          manipulation=F,#x,

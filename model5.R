@@ -18,6 +18,16 @@ if(!require('parallel')) {
   library(parallel)
 }
 
+if(!require('ggplot2')) {
+  install.packages(repos="http://cran.r-project.org",'ggplot2')
+  library(ggplot2)
+}
+
+style <- theme_light() +
+  theme(legend.position = 'top',
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor = element_blank())
+
 if(ARC) {
   # sink(paste(resultsPath, 'log.txt'))
   print(Sys.info())
@@ -196,5 +206,28 @@ print('Saving data...')
 # Save data
 write.csv(results, paste(resultsPath, 'results.csv'))
 save(rawdata, file = paste(resultsPath, 'rawdata.Rdata'))
+allAgents <- NULL
+for(rd in rawdata) {
+  rd$agents$agentCount <- rep(rd$model$agentCount,nrow(rd$agents))
+  rd$agents$agentDegree <- rep(rd$model$agentDegree,nrow(rd$agents))
+  rd$agents$decisionCount <- rep(rd$model$decisionCount,nrow(rd$agents))
+  rd$agents$modelDuration <- rep(rd$duration,nrow(rd$agents))
+  rd$agents$meanSensitivity <- rep(rd$model$other$sensitivity,nrow(rd$agents))
+  rd$agents$sdSensitivity <- rep(rd$model$other$sensitivitySD,nrow(rd$agents))
+  rd$agents$startingEgoBias <- rep(rd$model$other$startingEgoBias,nrow(rd$agents))
+  # only take a subset because of memory limitations
+  allAgents <- rbind(allAgents, rd$agents[rd$agents$generation%%50 == 1
+                                          | (rd$agents$generation%%25 == 1 & rd$agents$generation < 250), ])
+}
+ggplot(allAgents, 
+       aes(x=generation, y=egoBias)) +
+  geom_hline(yintercept = 0.5, linetype = 'dashed') +
+  stat_summary(geom = 'point', fun.y = mean, size = 3, alpha = 0.25) +
+  stat_summary(fun.data = mean_cl_boot, fun.args=(conf.int = .99), geom = 'errorbar', size = 1) +
+  scale_y_continuous(limits = c(0,1)) +
+  facet_wrap(meanSensitivity ~ sdSensitivity, labeller = label_both) +
+  labs(title = 'Model 5 (different sensitivities)') +
+  style 
+ggsave(paste(resultsPath, 'graph.png'))
 print('...complete.')
 
