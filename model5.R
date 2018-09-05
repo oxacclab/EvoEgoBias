@@ -175,13 +175,12 @@ for(x in c(1000)) {
 #   clusterExport(cl, "sensitivitySD")
 
 # Run parallel repetitions of the model with these settings
-.wd <- getwd()
 startTime <- Sys.time()
 if(!ARC) {
-  degreeResults <- lapply(specs, runModel, .wd)
+  degreeResults <- lapply(specs, runModel)
 } else {
   print('Executing parallel operations...')
-  degreeResults <- parLapply(cl, specs, runModel, .wd)
+  degreeResults <- parLapply(cl, specs, runModel)
 }
 
 print('...combining results...')
