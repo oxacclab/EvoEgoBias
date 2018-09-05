@@ -147,6 +147,7 @@ uncappedDecisionFun <- function(modelParams, agents, world, ties, initial = F) {
     # Use vector math to do the advice taking
     out <- NULL
     noise <- rnorm(length(mask), 0, adviceNoise)
+    agents$adviceNoise[mask] <- noise
     out <- (agents$initialDecision[mask] * agents$egoBias[mask]) + 
       ((1-agents$egoBias[mask]) * (agents$advice[mask] + noise))
     #out <- clamp(out, 100)
@@ -170,6 +171,7 @@ cappedDecisionFun <- function(modelParams, agents, world, ties, initial = F) {
     # Use vector math to do the advice taking
     out <- NULL
     noise <- rnorm(length(mask), 0, adviceNoise)
+    agents$adviceNoise[mask] <- noise
     out <- (agents$initialDecision[mask] * agents$egoBias[mask]) + 
       ((1-agents$egoBias[mask]) * (clamp(agents$advice[mask], 100) + noise))
     out <- clamp(out, 100)

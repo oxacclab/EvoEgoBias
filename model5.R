@@ -216,8 +216,7 @@ for(rd in rawdata) {
   rd$agents$sdSensitivity <- rep(rd$model$other$sensitivitySD,nrow(rd$agents))
   rd$agents$startingEgoBias <- rep(rd$model$other$startingEgoBias,nrow(rd$agents))
   # only take a subset because of memory limitations
-  allAgents <- rbind(allAgents, rd$agents[rd$agents$generation%%50 == 1
-                                          | (rd$agents$generation%%25 == 1 & rd$agents$generation < 250), ])
+  allAgents <- rbind(allAgents, rd$agents[rd$agents$generation%%5 == 1, ])
 }
 ggplot(allAgents, 
        aes(x=generation, y=egoBias)) +
