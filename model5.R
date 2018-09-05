@@ -45,13 +45,13 @@ suppressWarnings(rm('rawdata'))
 suppressWarnings(rm('results'))
 
 # Define the function
-runModel <- function(spec, .wd) {
-  setwd(.wd)
+runModel <- function(spec) {
+  setwd(spec$wd)
   source('evoSim/evoSim/R/evoSim.R')
   data <- evoSim(agentCount = spec$agents,
                  agentDegree = spec$degree,
                  decisionCount = spec$decisions,
-                 generationCount = 2500,
+                 generationCount = 1000,#2500,
                  mutationChance = 0.01,
                  other = list(sensitivity = spec$sensitivity, 
                               sensitivitySD = spec$sensitivitySD,
@@ -160,7 +160,8 @@ for(x in c(1000)) {
           for(sEB in c(0.01, 0.99))
           specs[[length(specs)+1]] <- list(agents=x,degree=y,decisions=z,
                                            sensitivity=s,sensitivitySD=sSD,
-                                           startingEgoBias=sEB)
+                                           startingEgoBias=sEB,
+                                           wd=getwd())
         }
       }
     }
