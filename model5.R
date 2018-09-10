@@ -87,7 +87,7 @@ runModel <- function(spec) {
                    # the others get weighted by relative fitness which are transformed to +ve values
                    tmp$fitness <- tmp$fitness - min(tmp$fitness) + 1
                    # scale appropriately
-                   while(any(tmp$fitness) < 10)
+                   while(any(abs(tmp$fitness) < 10))
                      tmp$fitness <- tmp$fitness * 10
                    # and round off
                    tmp$fitness <- round(tmp$fitness)
