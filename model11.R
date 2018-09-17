@@ -249,13 +249,13 @@ for(decisionType in 1:3) {
     
     # Parameter space to explore
     specs <- list()
-    for(s in c(10, 100))
-      #for(x in c(F, T))
+    for(s in c(1, 10))
+      for(x in c(F, T))
         specs[[length(specs)+1]] <- list(agents=1000,degree=10,decisions=30,
                                          sensitivity=s,sensitivitySD=s,
                                          startingEgoBias=.99,
                                          adviceNoise=0,
-                                         manipulation=F,#x,
+                                         manipulation=x,
                                          wd = getwd())
     
     if(decisionType == 1) {
