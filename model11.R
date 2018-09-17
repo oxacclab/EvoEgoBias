@@ -205,7 +205,7 @@ categoricalFitnessFun <- function(modelParams, agents, world, ties) {
 
 # Advice functions - there's noisy advice and bad advice ####
 noisyAdviceFun <- function(modelParams, agents, world, ties) {
-  adviceNoise <- ifelse(modelParams$other$manipulation, 10, 0)
+  adviceNoise <- ifelse(modelParams$other$manipulation, modelParams$other$adviceNoise, 0)
   mask <- which(agents$generation == world$generation)
   agents$advisor[mask] <- apply(ties, 1, function(x) sample(which(x != 0),1))
   # Fetch advice as a vector
@@ -220,7 +220,7 @@ noisyAdviceFun <- function(modelParams, agents, world, ties) {
 }
 
 badAdviceFun <- function(modelParams, agents, world, ties) {
-  badAdviceProb <- ifelse(modelParams$other$manipulation, .1, 0)
+  badAdviceProb <- ifelse(modelParams$other$manipulation, modelParams$other$adviceNoise/100, 0)
   mask <- which(agents$generation == world$generation)
   agents$advisor[mask] <- apply(ties, 1, function(x) sample(which(x != 0),1))
   # Fetch advice as a vector
@@ -254,7 +254,7 @@ for(decisionType in 1:3) {
         specs[[length(specs)+1]] <- list(agents=1000,degree=10,decisions=30,
                                          sensitivity=s,sensitivitySD=s,
                                          startingEgoBias=.99,
-                                         adviceNoise=0,
+                                         adviceNoise=5,
                                          manipulation=x,
                                          wd = getwd())
     
