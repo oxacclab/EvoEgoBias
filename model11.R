@@ -57,7 +57,7 @@ runModel <- function(spec) {
   data <- evoSim(agentCount = spec$agents,
                  agentDegree = spec$degree,
                  decisionCount = spec$decisions,
-                 generationCount = 10,#00,
+                 generationCount = 100,#0,
                  mutationChance = 0.01,
                  other = list(sensitivity = spec$sensitivity, 
                               sensitivitySD = spec$sensitivitySD,
