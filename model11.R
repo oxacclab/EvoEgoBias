@@ -57,7 +57,7 @@ runModel <- function(spec) {
   data <- evoSim(agentCount = spec$agents,
                  agentDegree = spec$degree,
                  decisionCount = spec$decisions,
-                 generationCount = 1000,
+                 generationCount = 10,#00,
                  mutationChance = 0.01,
                  other = list(sensitivity = spec$sensitivity, 
                               sensitivitySD = spec$sensitivitySD,
@@ -187,10 +187,7 @@ staticWorldStateFun = function(modelParams, world) {
 }
 
 variedWorldStateFun = function(modelParams, world) {
-    x = 50
-    while(x==50)
-      x <- round(runif(1,0,100))
-    return(x)
+    round(ifelse(runif(1)>.5, runif(1,0,49), runif(1,51,100)))
 }
 
 # Fitness functions - continuous (default) or categorical ####
@@ -199,7 +196,7 @@ categoricalFitnessFun <- function(modelParams, agents, world, ties) {
   # fitness (error) increases by 1 for an incorrect answer
   answer <- world$state > 50
   answers <- agents$finalDecision[mask] > 50
-  agents$fitness[mask] <- agents$fitness[mask] + as.numeric(answers==answer)
+  agents$fitness[mask] <- agents$fitness[mask] + as.numeric(answers!=answer)
   return(agents)
 }
 
