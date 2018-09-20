@@ -196,7 +196,7 @@ categoricalFitnessFun <- function(modelParams, agents, world, ties) {
   # fitness (error) increases by 1 for an incorrect answer
   answer <- world$state > 50
   answers <- agents$finalDecision[mask] > 50
-  agents$fitness[mask] <- agents$fitness[mask] + as.numeric(answers!=answer)
+  agents$fitness[mask] <- agents$fitness[mask] - as.numeric(answers!=answer)
   return(agents)
 }
 
