@@ -112,24 +112,9 @@ runModel <- function(spec) {
                  getDecisionFun = spec$getDecisionFun,
                  getFitnessFun = spec$getFitnessFun)
   # save results
-  n <- length(unique(data$agents$generation))
-  results <- data.frame(generation = unique(data$agents$generation), 
-                        modelDuration = rep(data$duration, n),
-                        sensitivity = rep(spec$sensitivity, n),
-                        sensitivitySD = rep(spec$sensitivitySD, n))
-  # bind in the stats of interest aggregated by the generation
-  results <- cbind(results, 
-                   aggregate(data$agents, 
-                             list(data$agents$generation), 
-                             mean)[ ,c('fitness', 
-                                       'degree', 
-                                       'sensitivity', 
-                                       'egoBias', 
-                                       'initialDecision', 
-                                       'finalDecision')])
   rawdata <- data
   rawdata$rep <- 1
-  return(list(rawdata = rawdata, results = results))
+  return(list(rawdata = rawdata))
 }
 
 # Decision functions - uncapped continuous (default), capped continuous, and discrete ####
@@ -233,8 +218,8 @@ badAdviceFun <- function(modelParams, agents, world, ties) {
   return(agents)
 }
 
-for(decisionType in 1:3) {
-  for(adviceType in 1:3) {
+for(decisionType in 3){#1:3) {
+  for(adviceType in 2:3){#1:3) {
     # Storage path for results
     resultsPath <- ifelse(ARC,'results/','results/')
     time <- format(Sys.time(), "%F_%H-%M-%S")
@@ -270,7 +255,7 @@ for(decisionType in 1:3) {
     } else {
       for(i in 1:length(specs)) {
         specs[[i]]$getWorldStateFun <- variedWorldStateFun
-        specs[[i]]$getDecisionFun <- uncappedDecisionFun
+        specs[[i]]$getDecisionFun <- cappedDecisionFun
         specs[[i]]$getFitnessFun <- categoricalFitnessFun
         specs[[i]]$shortDesc <- 'Categorical decisions'
       }
@@ -292,7 +277,6 @@ for(decisionType in 1:3) {
     } else {
       for(i in 1:length(specs)) {
         # getAdviceFun is NULL
-        specs[[i]]$adviceNoise <- 10
         specs[[i]]$shortDesc <- paste(specs[[i]]$shortDesc, 'with noisy communication')
       }
     }
@@ -315,10 +299,6 @@ for(decisionType in 1:3) {
     print('...combining results...')
     # Join up results
     for(res in degreeResults) {
-      # if(!exists('results'))
-      #   results <- res$results
-      # else
-      #   results <- rbind(results, res$results)
       if(!exists('rawdata'))
         rawdata <- list(res$rawdata)
       else
@@ -337,6 +317,7 @@ for(decisionType in 1:3) {
     print('...saved rawdata...')
     # Smaller datafile for stopping me running out of memory during analysis
     allAgents <- NULL
+    allDecisions <- NULL
     for(rd in rawdata) {
       rd$agents$agentCount <- rep(rd$model$agentCount,nrow(rd$agents))
       rd$agents$agentDegree <- rep(rd$model$agentDegree,nrow(rd$agents))
@@ -350,8 +331,11 @@ for(decisionType in 1:3) {
       # only take a subset because of memory limitations
       allAgents <- rbind(allAgents, rd$agents[rd$agents$generation%%50 == 1
                                               | (rd$agents$generation%%25 == 1 & rd$agents$generation < 250), ])
+      allDecisions <- rbind(allDecisions, rd$decisions[rd$decisions$generation %in% allAgents$generation, ])
     }
-    save(allAgents, file = paste(resultsPath, 'rawdata_subset.Rdata'))
+    toSave <- list(allAgents, allDecisions)
+    save(toSave, file = paste(resultsPath, 'rawdata_subset.Rdata'))
+    rm('toSave')
     print('...saved subset...')
     
     # Plot

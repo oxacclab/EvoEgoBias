@@ -427,6 +427,7 @@ evoSim <- function(agentCount,
   tmp <- makeAgents(modelParams)
   agents <- tmp$agents
   ties <- tmp$ties
+  decisions <- NULL
 
   for(g in 1:modelParams$generationCount) {
     # Make decisions
@@ -434,7 +435,6 @@ evoSim <- function(agentCount,
       # Correct answer (same for all agents)
       world <- list(generation = g, decision = d)
       world$state <- modelParams$getWorldState(modelParams, world)
-      mask <- which(agents$generation == g)
       # Initial decisions
       agents <- modelParams$getDecision(modelParams, agents, world, ties, initial = T)
       # Advice
@@ -445,6 +445,12 @@ evoSim <- function(agentCount,
       agents <- modelParams$getFitness(modelParams, agents, world, ties)
       # Update connections
       ties <- modelParams$updateConnections(modelParams, agents, world, ties)
+      # Record decision
+      mask <- which(agents$generation==g)
+      agents$decision[mask] <- d
+      decisions <- rbind(decisions, agents[mask, c('id', 'genId', 'generation',
+                                                   'decision', 'fitness', 'egoBias', 
+                                                   'initialDecision', 'advisor', 'advice', 'finalDecision')])
     }
     if(g==modelParams$generationCount)
       next()
@@ -461,7 +467,10 @@ evoSim <- function(agentCount,
   tElapsed <- as.numeric(format(tEnd,"%s")) - as.numeric(format(tStart,"%s"))
   # Return an output containing inputs and the agents data frame
   modelData <- list(model = modelParams,
-                    agents = agents,
+                    # to avoid duplicating info we reduce agents dataframe to remove columns about decisions
+                    agents = agents[,-which(names(agents) %in% 
+                                              c('initialDecision', 'advisor', 'advice', 'finalDecsision'))], 
+                    decisions = decisions,
                     duration = tElapsed)
   return(modelData)
 }
