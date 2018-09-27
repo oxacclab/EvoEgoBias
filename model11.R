@@ -311,8 +311,6 @@ for(decisionType in 3){#1:3) {
     print(object.size(rawdata), units = 'auto')
     print('Saving data...')
     # Save data
-    # write.csv(results, paste(resultsPath, 'results.csv'))
-    # print('...saved csv...')
     save(rawdata, file = paste(resultsPath, 'rawdata.Rdata'))
     print('...saved rawdata...')
     # Smaller datafile for stopping me running out of memory during analysis
