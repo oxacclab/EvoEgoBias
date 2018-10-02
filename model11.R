@@ -29,7 +29,7 @@ style <- theme_light() +
         panel.grid.major.x = element_blank(),
         panel.grid.minor = element_blank())
 
-parallel <- T
+parallel <- F
 
 
 ARC <- Sys.info()[[1]] != 'Windows'
@@ -65,24 +65,45 @@ runModel <- function(spec) {
                               adviceNoise = spec$adviceNoise,
                               manipulation = spec$manipulation,
                               shortDesc = spec$shortDesc),
-                 makeAgentFun = function(modelParams, parents = NULL) {
-                   # Inherit egoBias if there's a previous generation and we're not mutating
-                   if(!is.null(parents)) {
-                     if(runif(1) < modelParams$mutationChance) {
-                       # mutate
-                       egoBias <- rnorm(1, parents$egoBias, 0.1)
-                     } else {
-                       egoBias <- parents$egoBias
-                     }
+                 makeAgentsFun = function(modelParams, previousGeneration = NULL, parents = NULL) {
+                   # Population size and generation extracted from current population or by
+                   # modelParams$agentCount
+                   if(is.null(previousGeneration)) {
+                     n <- modelParams$agentCount
+                     g <- 0
                    }
                    else {
-                     egoBias <- modelParams$other$startingEgoBias#rnorm(1, .5, 1)
+                     n <- dim(previousGeneration)[1]
+                     g <- previousGeneration$generation[1]
                    }
-                   sensitivity <- abs(rnorm(1, mean = modelParams$other$sensitivity, 
-                                            sd = modelParams$other$sensitivitySD))
-                   # Keep egoBias to within [0-1]
-                   egoBias <- clamp(egoBias, maxVal = 1, minVal = 0)
-                   return(data.frame(sensitivity, egoBias))
+                   
+                   g <- g + 1 # increment generation
+                   
+                   # mutants and fresh spawns get randomly assigned egoBias
+                   makeAgents.agents <- data.frame(egoBias = rep(modelParams$other$startingEgoBias,
+                                                                 modelParams$agentCount),
+                                                   sensitivity = abs(rnorm(modelParams$agentCount,
+                                                                           modelParams$other$sensitivity,
+                                                                           modelParams$other$sensitivitySD)),
+                                                   generation = rep(g, modelParams$agentCount),
+                                                   adviceNoise = rep(NA, modelParams$agentCount))
+                   
+                   # Overwrite the agents' egobias by inheritance from parents where applicable
+                   if(!is.null(parents)) {
+                     makeAgents.agents$egoBias <- previousGeneration$egoBias[parents]
+                     # mutants inherit from a normal distribution
+                     mutants <- runif(modelParams$agentCount) < modelParams$mutationChance
+                     makeAgents.agents$egoBias[mutants] <- rnorm(sum(mutants), 
+                                                                 previousGeneration$egoBias[parents[mutants]], 
+                                                                 0.1)
+                   }
+                     
+                   makeAgents.agents$egoBias <- clamp(makeAgents.agents$egoBias, maxVal = 1, minVal = 0)
+                   
+                   # Connect agents together
+                   ties <- modelParams$connectAgents(modelParams, makeAgents.agents)
+                   makeAgents.agents$degree <- sapply(1:nrow(makeAgents.agents), getDegree, ties)
+                   return(list(agents = makeAgents.agents, ties = ties))
                  },
                  selectParentsFun = function(modelParams, agents, world, ties) {
                    tmp <- agents[which(agents$generation == world$generation),]
@@ -104,7 +125,7 @@ runModel <- function(spec) {
                    }
                    winners <- sample(tickets, modelParams$agentCount, replace = T)
                    # The winners clone their egocentric discounting
-                   winners <- tmp[winners,'id']
+                   winners <- tmp[winners,'genId']
                    return(winners)
                  },
                  getAdviceFun = spec$getAdviceFun,
@@ -218,8 +239,8 @@ badAdviceFun <- function(modelParams, agents, world, ties) {
   return(agents)
 }
 
-for(decisionType in 3){#1:3) {
-  for(adviceType in 2:3){#1:3) {
+for(decisionType in 1:3) {
+  for(adviceType in 1:3) {
     # Storage path for results
     resultsPath <- ifelse(ARC,'results/','results/')
     time <- format(Sys.time(), "%F_%H-%M-%S")
@@ -227,7 +248,6 @@ for(decisionType in 3){#1:3) {
     
     # Clear the result storage variables
     suppressWarnings(rm('rawdata'))
-    suppressWarnings(rm('results'))
     
     # Parameter space to explore
     specs <- list()
@@ -283,7 +303,7 @@ for(decisionType in 3){#1:3) {
     
     # Testing code for debugging parallel stuff
     # rm('x','y','z','s','sSD','sEB','aN','bA')
-    # runModel(specs[[1]])
+    # testData <- runModel(specs[[1]])
     #specs <- specs[1:24]
     
     # Run the models
@@ -327,8 +347,9 @@ for(decisionType in 3){#1:3) {
       rd$agents$manipulation <- rep(rd$model$other$manipulation,nrow(rd$agents))
       rd$agents$description <- rep(rd$model$other$shortDesc, nrow(rd$agents))
       # only take a subset because of memory limitations
-      allAgents <- rbind(allAgents, rd$agents[rd$agents$generation%%50 == 1
-                                              | (rd$agents$generation%%25 == 1 & rd$agents$generation < 250), ])
+      allAgents <- rbind(allAgents, rd$agents)
+      # allAgents <- rbind(allAgents, rd$agents[rd$agents$generation%%50 == 1
+      #                                         | (rd$agents$generation%%25 == 1 & rd$agents$generation < 250), ])
       allDecisions <- rbind(allDecisions, rd$decisions[rd$decisions$generation %in% allAgents$generation, ])
     }
     toSave <- list(allAgents, allDecisions)

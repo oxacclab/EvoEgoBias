@@ -51,26 +51,6 @@ clamp <- function(x, maxVal, minVal = 0) {
 ## Model functions ####
 ### Agent Creation functions ####
 
-#' Return an agent created from parents
-#'
-#' @param modelParams parameters for the model as a named list
-#' @param parents data.frame of parent agents who will have some say in
-#'   determining the properties of the agent
-#'
-#' @return \code{data.frame} row(s) representing the spawned agent
-#'
-#' @export
-makeAgent <- function(modelParams, parents = NULL) {
-  # Inherit egoBias if there's a previous generation and we're not mutating
-  if(!is.null(parents) & runif(1) > modelParams$mutationChance)
-    agent <- data.frame(egoBias = parents$egoBias[1],
-                        sensitivity = runif(1))
-  else
-    agent <- data.frame(egoBias = runif(1),
-                        sensitivity = runif(1))
-  return(agent)
-}
-
 #' Return the initial strength of a connection between \code{sender} and \code{receiver}
 #'
 #' @param receiver data.frame row of the agent receiving information over the connection
@@ -168,20 +148,17 @@ makeAgents <- function(modelParams, previousGeneration = NULL, parents = NULL) {
   }
 
   g <- g + 1 # increment generation
+  
+  # mutants and fresh spawns get randomly assigned egoBias
+  makeAgents.agents <- data.frame(egoBias = runif(modelParams$agentCount),
+                                  sensitivity = runif(modelParams$agentCount),
+                                  generation = rep(g, modelParams$agentCount))
 
-  # Create the agents by inheritance from parents where applicable
-  for(i in 1:n) {
-    if(!is.null(parents[[i]]))
-      a <- modelParams$makeAgent(modelParams,
-                                 previousGeneration[previousGeneration$id == parents[[i]], ])
-    else
-      a <- modelParams$makeAgent(modelParams)
-    # add in the metadata for the agent
-    a <- cbind(data.frame(id = (n*g+i), genId = i, generation = g, fitness = 0), a)
-    if(!exists('makeAgents.agents'))
-      makeAgents.agents <- a
-    else
-      makeAgents.agents <- rbind(makeAgents.agents, a)
+  # Overwrite the agents' egobias by inheritance from parents where applicable
+  if(!is.null(parents)) {
+    mutants <- runif(modelParams$agentCount) < modelParams$mutationChance
+    makeAgents.agents$egoBias[!mutants] <- previousGeneration$egoBias[parents[!mutants]]
+    
   }
 
   # Connect agents together
@@ -337,7 +314,7 @@ selectParents <- function(modelParams, agents, world, ties) {
   }
   winners <- sample(tickets, modelParams$agentCount, replace = T)
   # The winners clone their egocentric discounting
-  winners <- tmp[winners,'id']
+  winners <- tmp[winners,'genId']
   return(winners)
 }
 
@@ -390,7 +367,6 @@ evoSim <- function(agentCount,
                    learnRate = 0.00,
                    other = NULL,
                    makeAgentsFun = NULL,
-                   makeAgentFun = NULL,
                    connectAgentsFun = NULL,
                    initialConnectionStrengthFun = NULL,
                    getWorldStateFun = NULL,
@@ -408,7 +384,6 @@ evoSim <- function(agentCount,
                       mutationChance = mutationChance,
                       other = other,
                       learnRate = learnRate,
-                      makeAgent = ifelse(!is.null(makeAgentFun),makeAgentFun,makeAgent),
                       makeAgents = ifelse(!is.null(makeAgentsFun),makeAgentsFun,makeAgents),
                       connectAgents = ifelse(!is.null(connectAgentsFun),connectAgentsFun,connectAgents),
                       initialConnectionStrength = ifelse(!is.null(initialConnectionStrengthFun),
@@ -423,14 +398,44 @@ evoSim <- function(agentCount,
                       getFitness = ifelse(!is.null(getFitnessFun),getFitnessFun,getFitness),
                       selectParents = ifelse(!is.null(selectParentsFun),selectParentsFun,selectParents))
 
+  n <- modelParams$agentCount * modelParams$generationCount
+  agents <- data.frame(id = 1:n,
+                       genId = rep(1:modelParams$agentCount, modelParams$generationCount),
+                       generation = rep(1:modelParams$generationCount, each = modelParams$agentCount),
+                       fitness = rep(0, n),
+                       egoBias = rep(NA, n),
+                       initialDecision = rep(NA, n),
+                       advisor = rep(NA, n),
+                       advice = rep(NA, n),
+                       finalDecision = rep(NA, n))
+  
+  n <- n * modelParams$decisionCount
+  decisions <- data.frame(id = rep(agents$id, each = modelParams$decisionCount),
+                          genId = rep(agents$genId, each = modelParams$decisionCount),
+                          generation = rep(agents$generation, each = modelParams$decisionCount),
+                          decision = rep(1:modelParams$decisionCount, 
+                                         modelParams$agentCount * modelParams$generationCount),
+                          fitness = rep(0, n),
+                          egoBias = rep(NA, n),
+                          initialDecision = rep(NA, n),
+                          advisor = rep(NA, n),
+                          advice = rep(NA, n),
+                          finalDecision = rep(NA, n))
+  
   tStart <- Sys.time()
-  tmp <- makeAgents(modelParams)
-  agents <- tmp$agents
+  tmp <- modelParams$makeAgents(modelParams)
+  tmp$agents$fitness <- 0
+  # ensure all column names appear in both hardcoded and user-supplied data frames
+  agents[, names(tmp$agents)[which(!(names(tmp$agents) %in% names(agents)))]] <- NA
+  
+  # fill in the initial generation data in the correct columns
+  agents[agents$generation==1, names(agents) %in% names(tmp$agents)] <- 
+    tmp$agents[,names(tmp$agents)[order(match(names(tmp$agents), names(agents)))]]
   ties <- tmp$ties
-  decisions <- NULL
 
   for(g in 1:modelParams$generationCount) {
     # Make decisions
+    mask <- which(agents$generation==g)
     for(d in 1:modelParams$decisionCount) {
       # Correct answer (same for all agents)
       world <- list(generation = g, decision = d)
@@ -446,20 +451,20 @@ evoSim <- function(agentCount,
       # Update connections
       ties <- modelParams$updateConnections(modelParams, agents, world, ties)
       # Record decision
-      mask <- which(agents$generation==g)
-      agents$decision[mask] <- d
-      decisions <- rbind(decisions, agents[mask, c('id', 'genId', 'generation',
-                                                   'decision', 'fitness', 'egoBias', 
-                                                   'initialDecision', 'advisor', 'advice', 'finalDecision')])
+      decisions[decisions$generation == g & decisions$decision == d, 
+                c('id', 'genId', 'generation', 'fitness', 'egoBias',
+                  'initialDecision', 'advisor', 'advice', 'finalDecision')] <- 
+        agents[mask, c('id', 'genId', 'generation', 'fitness', 'egoBias',
+                       'initialDecision', 'advisor', 'advice', 'finalDecision')]
     }
     if(g==modelParams$generationCount)
       next()
     # Evolve
     parents <- modelParams$selectParents(modelParams, agents, world, ties)
-    tmp <- makeAgents(modelParams, agents[agents$generation == g, ], parents)
-    for(n in names(agents)[which(!(names(agents) %in% names(tmp$agents)))])
-      tmp$agents[,n] <- NA
-    agents <- rbind(agents, tmp$agents)
+    tmp <- modelParams$makeAgents(modelParams, agents[agents$generation == g, ], parents)
+    # combine new generation into full data frame while allowing for mismatched column orders
+    agents[agents$generation==g+1, names(agents) %in% names(tmp$agents)] <- 
+      tmp$agents[,names(tmp$agents)[order(match(names(tmp$agents), names(agents)))]]
     ties <- tmp$ties
   }
 
