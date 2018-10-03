@@ -347,9 +347,9 @@ for(decisionType in 1:3) {
       rd$agents$manipulation <- rep(rd$model$other$manipulation,nrow(rd$agents))
       rd$agents$description <- rep(rd$model$other$shortDesc, nrow(rd$agents))
       # only take a subset because of memory limitations
-      allAgents <- rbind(allAgents, rd$agents)
-      # allAgents <- rbind(allAgents, rd$agents[rd$agents$generation%%50 == 1
-      #                                         | (rd$agents$generation%%25 == 1 & rd$agents$generation < 250), ])
+      # allAgents <- rbind(allAgents, rd$agents)
+      allAgents <- rbind(allAgents, rd$agents[rd$agents$generation%%50 == 1
+                                              | (rd$agents$generation%%25 == 1 & rd$agents$generation < 250), ])
       allDecisions <- rbind(allDecisions, rd$decisions[rd$decisions$generation %in% allAgents$generation, ])
     }
     toSave <- list(allAgents, allDecisions)

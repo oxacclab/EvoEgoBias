@@ -6,3 +6,5 @@ The results from categorical decisions are extreme, suggesting a mistake in the 
 Results show consistency for un/capped decisions. Results show that categorical decisions are fixed for noisy advice and bad advice, but remain undifferentiated at 100% egocentric bias for noisy communication. Again, suggestive of a bug which should be fixed before investigating different use of confidence scales as a potential source of noise.  
 ## 27/09/2018  
 Removed seldom-used results summary, and added recording of every decision in an attempt to detect the issue with categorical decisions under noisy communication. Also switched the default decision type underlying categorical decisions to be capped decisions rather than uncapped decisions. Models have been taking too long to run; something that happens infrequently. Perhaps an infinite loop somewhere, or a bug in the way the code is processed on ARC.  
+## 02/10/2018   
+Significantly restructured core files to support saving of each decision and to improve runtime. Results should duplicate those from before, including failure to demonstrate averaging for categorical decisions under noisy communication.
