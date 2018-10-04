@@ -239,7 +239,7 @@ getAdvice <- function(modelParams, agents, world, ties) {
   mask <- which(agents$generation == world$generation)
   agents$advisor[mask] <- apply(ties, 1, function(x) sample(which(x != 0),1))
   # Fetch advice as a vector
-  agents$advice[mask] <- agents$initialDecision[agents$advisor[mask]]
+  agents$advice[mask] <- agents$initialDecision[mask][agents$advisor[mask]]
   return(agents)
 }
 

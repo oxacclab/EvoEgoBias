@@ -29,7 +29,7 @@ style <- theme_light() +
         panel.grid.major.x = element_blank(),
         panel.grid.minor = element_blank())
 
-parallel <- F
+parallel <- T
 
 
 ARC <- Sys.info()[[1]] != 'Windows'
@@ -215,7 +215,7 @@ noisyAdviceFun <- function(modelParams, agents, world, ties) {
   n <- length(mask)
   agents$advice[mask] <- rnorm(n, 
                                rep(world$state, n), 
-                               clamp(agents$sensitivity[agents$advisor[mask]]
+                               clamp(agents$sensitivity[mask][agents$advisor[mask]]
                                      + adviceNoise,
                                      Inf))
   agents$advice[mask] <- clamp(agents$advice[mask], 100)
@@ -230,7 +230,7 @@ badAdviceFun <- function(modelParams, agents, world, ties) {
   n <- length(mask)
   agents$advice[mask] <- rnorm(n, 
                                rep(world$state, n), 
-                               clamp(agents$sensitivity[agents$advisor[mask]],Inf))
+                               clamp(agents$sensitivity[mask][agents$advisor[mask]],Inf))
   badActors <- mask & (runif(n) < badAdviceProb)
   # bad actors give advice as certain in the other direction
   agents$advice[badActors] <- ifelse(agents$advice[badActors] < 50, 
@@ -239,8 +239,8 @@ badAdviceFun <- function(modelParams, agents, world, ties) {
   return(agents)
 }
 
-for(decisionType in 1:3) {
-  for(adviceType in 1:3) {
+for(decisionType in 3) {
+  for(adviceType in 3) {
     # Storage path for results
     resultsPath <- ifelse(ARC,'results/','results/')
     time <- format(Sys.time(), "%F_%H-%M-%S")
