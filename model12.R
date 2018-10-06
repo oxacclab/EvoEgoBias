@@ -57,7 +57,7 @@ runModel <- function(spec) {
   data <- evoSim(agentCount = spec$agents,
                  agentDegree = spec$degree,
                  decisionCount = spec$decisions,
-                 generationCount = 1500,
+                 generationCount = 1000,
                  mutationChance = 0.01,
                  other = list(sensitivity = spec$sensitivity, 
                               sensitivitySD = spec$sensitivitySD,
@@ -299,7 +299,7 @@ for(decisionType in 3) {
       for(x in c(F, T))
         specs[[length(specs)+1]] <- list(agents=1000,degree=10,decisions=30,
                                          sensitivity=s,sensitivitySD=s,
-                                         startingEgoBias=.60,
+                                         startingEgoBias=.99,
                                          adviceNoise=5,
                                          manipulation=x,
                                          wd = getwd())
