@@ -57,7 +57,7 @@ runModel <- function(spec) {
   data <- evoSim(agentCount = spec$agents,
                  agentDegree = spec$degree,
                  decisionCount = spec$decisions,
-                 generationCount = 2500,
+                 generationCount = 1500,
                  mutationChance = 0.01,
                  other = list(sensitivity = spec$sensitivity, 
                               sensitivitySD = spec$sensitivitySD,
@@ -387,7 +387,7 @@ for(decisionType in 3) {
     print('...saved rawdata...')
     # Smaller datafile for stopping me running out of memory during analysis
     allAgents <- NULL
-    allDecisions <- NULL
+    #allDecisions <- NULL
     for(rd in rawdata) {
       rd$agents$agentCount <- rep(rd$model$agentCount,nrow(rd$agents))
       rd$agents$agentDegree <- rep(rd$model$agentDegree,nrow(rd$agents))
@@ -402,11 +402,11 @@ for(decisionType in 3) {
       # allAgents <- rbind(allAgents, rd$agents)
       allAgents <- rbind(allAgents, rd$agents[rd$agents$generation%%50 == 1
                                               | (rd$agents$generation%%25 == 1 & rd$agents$generation < 250), ])
-      allDecisions <- rbind(allDecisions, rd$decisions[rd$decisions$generation %in% allAgents$generation, ])
+      #allDecisions <- rbind(allDecisions, rd$decisions[rd$decisions$generation %in% allAgents$generation, ])
     }
-    toSave <- list(allAgents, allDecisions)
-    save(toSave, file = paste(resultsPath, 'rawdata_subset.Rdata'))
-    rm('toSave')
+    #toSave <- list(allAgents, allDecisions)
+    save(allAgents, file = paste(resultsPath, 'rawdata_subset.Rdata'))
+    #rm('toSave')
     print('...saved subset...')
     
     # Plot

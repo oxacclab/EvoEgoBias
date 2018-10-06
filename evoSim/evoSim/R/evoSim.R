@@ -350,6 +350,8 @@ selectParents <- function(modelParams, agents, world, ties) {
 #'   format of \code{\link{getFitness}}
 #' @param selectParentsFun Select which agents get to be parents for the next
 #'   generation. Should follow format of \code{\link{selectParents}}
+#' @param recordDecisions Whether to return a dataframe containing the decisions
+#'   in the model results
 #'
 #' @description This function is the specifier for the interactive agent-based
 #'   models enabled by evoSim. It is called with some simple parameters
@@ -374,7 +376,8 @@ evoSim <- function(agentCount,
                    getAdviceFun = NULL,
                    updateConnectionsFun = NULL,
                    getFitnessFun = NULL,
-                   selectParentsFun = NULL) {
+                   selectParentsFun = NULL,
+                   recordDecisions = F) {
 
   # Generate the model parameters
   modelParams <- list(agentCount = agentCount,
@@ -396,7 +399,8 @@ evoSim <- function(agentCount,
                                                  updateConnectionsFun,
                                                  updateConnections),
                       getFitness = ifelse(!is.null(getFitnessFun),getFitnessFun,getFitness),
-                      selectParents = ifelse(!is.null(selectParentsFun),selectParentsFun,selectParents))
+                      selectParents = ifelse(!is.null(selectParentsFun),selectParentsFun,selectParents),
+                      recordDecisions = recordDecisions)
 
   n <- modelParams$agentCount * modelParams$generationCount
   agents <- data.frame(id = 1:n,
@@ -410,17 +414,18 @@ evoSim <- function(agentCount,
                        finalDecision = rep(NA, n))
   
   n <- n * modelParams$decisionCount
-  decisions <- data.frame(id = rep(agents$id, each = modelParams$decisionCount),
-                          genId = rep(agents$genId, each = modelParams$decisionCount),
-                          generation = rep(agents$generation, each = modelParams$decisionCount),
-                          decision = rep(1:modelParams$decisionCount, 
-                                         modelParams$agentCount * modelParams$generationCount),
-                          fitness = rep(0, n),
-                          egoBias = rep(NA, n),
-                          initialDecision = rep(NA, n),
-                          advisor = rep(NA, n),
-                          advice = rep(NA, n),
-                          finalDecision = rep(NA, n))
+  if(recordDecisions)
+    decisions <- data.frame(id = rep(agents$id, each = modelParams$decisionCount),
+                            genId = rep(agents$genId, each = modelParams$decisionCount),
+                            generation = rep(agents$generation, each = modelParams$decisionCount),
+                            decision = rep(1:modelParams$decisionCount, 
+                                           modelParams$agentCount * modelParams$generationCount),
+                            fitness = rep(0, n),
+                            egoBias = rep(NA, n),
+                            initialDecision = rep(NA, n),
+                            advisor = rep(NA, n),
+                            advice = rep(NA, n),
+                            finalDecision = rep(NA, n))
   
   tStart <- Sys.time()
   tmp <- modelParams$makeAgents(modelParams)
@@ -451,11 +456,12 @@ evoSim <- function(agentCount,
       # Update connections
       ties <- modelParams$updateConnections(modelParams, agents, world, ties)
       # Record decision
-      decisions[decisions$generation == g & decisions$decision == d, 
-                c('id', 'genId', 'generation', 'fitness', 'egoBias',
-                  'initialDecision', 'advisor', 'advice', 'finalDecision')] <- 
-        agents[mask, c('id', 'genId', 'generation', 'fitness', 'egoBias',
-                       'initialDecision', 'advisor', 'advice', 'finalDecision')]
+      if(recordDecisions)
+        decisions[decisions$generation == g & decisions$decision == d, 
+                  c('id', 'genId', 'generation', 'fitness', 'egoBias',
+                    'initialDecision', 'advisor', 'advice', 'finalDecision')] <- 
+          agents[mask, c('id', 'genId', 'generation', 'fitness', 'egoBias',
+                         'initialDecision', 'advisor', 'advice', 'finalDecision')]
     }
     if(g==modelParams$generationCount)
       next()
@@ -475,7 +481,8 @@ evoSim <- function(agentCount,
                     # to avoid duplicating info we reduce agents dataframe to remove columns about decisions
                     agents = agents[,-which(names(agents) %in% 
                                               c('initialDecision', 'advisor', 'advice', 'finalDecsision'))], 
-                    decisions = decisions,
                     duration = tElapsed)
+  if(recordDecisions)
+    modelData <- c(modelData, list(decisions = decisions))
   return(modelData)
 }

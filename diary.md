@@ -10,3 +10,5 @@ Removed seldom-used results summary, and added recording of every decision in an
 Significantly restructured core files to support saving of each decision and to improve runtime. Results should duplicate those from before, including failure to demonstrate averaging for categorical decisions under noisy communication.  
 ## 04/10/2018  
 Fixed bug making agents use the initial decisions of the first generation as advice rather than the initial decisions of their own generation. This has fixed the problem with categorical decisions under noisy communication. Next step is to implement different use of confidence scale and observe whether it produces similar pressure towards egocentric discounting.  
+## 06/10/2018  
+Made decision recording optional due to its massive time increase.  
