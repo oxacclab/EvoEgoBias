@@ -1,9 +1,10 @@
-# Model 12 ####
+# Model 13 ####
 
 #' Here we explore whether egocentric bias is diverted from the optimum set
-#' point when agents have a characterisitic scaling factor they use in
+#' point when agents have one of two possible scaling factors they use in
 #' confidence communication. The decision is cast as a categorical problem, with
 #' the true answer normally distributed around the midline.
+#' 
 
 
 # Libraries
@@ -80,7 +81,8 @@ runModel <- function(spec) {
                                                                            modelParams$other$sensitivitySD)),
                                                    generation = rep(g, modelParams$agentCount),
                                                    adviceNoise = rep(NA, modelParams$agentCount),
-                                                   confidenceScaling = exp(rnorm(modelParams$agentCount)))
+                                                   confidenceScaling = ifelse(runif(modelParams$agentCount)<.5,
+                                                                              1,10))
                    
                    # Overwrite the agents' egobias by inheritance from parents where applicable
                    if(!is.null(parents)) {
@@ -257,7 +259,7 @@ badAdviceFun <- function(modelParams, agents, world, ties) {
   # bad actors give advice as certain in the other direction
   agents$advice[badActors] <- ifelse(agents$advice[badActors] < 50, 
                                      50+3*modelParams$other$sensitivity, 
-                                     -(50+3*modelParams$other$sensitivity)) 
+                                     50-3*modelParams$other$sensitivity) 
   return(agents)
 }
 
@@ -266,8 +268,7 @@ confAdviceFun <- function(modelParams, agents, world, ties) {
   mask <- which(agents$generation == world$generation)
   agents$advisor[mask] <- apply(ties, 1, function(x) sample(which(x != 0),1))
   #' Fetch advice as a vector, scale it to center around 0 rather than 50,
-  #' multiply it by a scaling factor normally distributed around 1 on a
-  #' logarithmic scale (log-normal distribution), then add 50 again restore its
+  #' multiply it by a scaling factor of 1 or 10, then add 50 again restore its
   #' positioning
   if(modelParams$other$manipulation)
     agents$advice[mask] <- ((agents$initialDecision[mask][agents$advisor[mask]] - 50) *
@@ -278,7 +279,7 @@ confAdviceFun <- function(modelParams, agents, world, ties) {
 }
 
 for(decisionType in 3) {
-  for(adviceType in 3:4) {
+  for(adviceType in 4) {
     # Storage path for results
     resultsPath <- ifelse(ARC,'results/','results/')
     time <- format(Sys.time(), "%F_%H-%M-%S")

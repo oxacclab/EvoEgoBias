@@ -12,3 +12,5 @@ Significantly restructured core files to support saving of each decision and to 
 Fixed bug making agents use the initial decisions of the first generation as advice rather than the initial decisions of their own generation. This has fixed the problem with categorical decisions under noisy communication. Next step is to implement different use of confidence scale and observe whether it produces similar pressure towards egocentric discounting.  
 ## 06/10/2018  
 Made decision recording optional due to its massive time increase.  
+## 08/10/2018  
+Values for categorical decisions hover around egoBias .5 regardless of sensitivity or manipulation, plausibly because the task is too easy for the agents. Trying again with the world value being any real value drawn from a normal distribution with mean 50 and SD 1.  
