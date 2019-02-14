@@ -4,15 +4,14 @@
 \name{evoSim}
 \alias{evoSim}
 \alias{evoSim-package}
-\alias{evoSim}
 \title{evolutionary models of interacting agents}
 \usage{
-evoSim(agentCount, agentDegree, decisionCount, generationCount, mutationChance,
-  learnRate = 0, other = NULL, makeAgentsFun = NULL,
-  makeAgentFun = NULL, connectAgentsFun = NULL,
-  initialConnectionStrengthFun = NULL, getWorldStateFun = NULL,
-  getDecisionFun = NULL, getAdviceFun = NULL, updateConnectionsFun = NULL,
-  getFitnessFun = NULL, selectParentsFun = NULL)
+evoSim(agentCount, agentDegree, decisionCount, generationCount,
+  mutationChance, learnRate = 0, other = NULL, makeAgentsFun = NULL,
+  connectAgentsFun = NULL, initialConnectionStrengthFun = NULL,
+  getWorldStateFun = NULL, getDecisionFun = NULL,
+  getAdviceFun = NULL, updateConnectionsFun = NULL,
+  getFitnessFun = NULL, selectParentsFun = NULL, recordDecisions = F)
 }
 \arguments{
 \item{agentCount}{number of agents in each generation}
@@ -33,10 +32,6 @@ Accessed by \code{modelParams$other}}
 \item{makeAgentsFun}{function for producing agents. Should follow format of
 \code{\link{makeAgents}}}
 
-\item{makeAgentFun}{function for producing an individual agent. Typically
-called from \code{makeAgents}. Should follow format of
-\code{\link{makeAgent}}}
-
 \item{connectAgentsFun}{function for connecting agents. Should follow format
 of \code{\link{connectAgents}}}
 
@@ -55,6 +50,13 @@ format of \code{\link{getFitness}}}
 
 \item{selectParentsFun}{Select which agents get to be parents for the next
 generation. Should follow format of \code{\link{selectParents}}}
+
+\item{recordDecisions}{Whether to return a dataframe containing the decisions
+in the model results}
+
+\item{makeAgentFun}{function for producing an individual agent. Typically
+called from \code{makeAgents}. Should follow format of
+\code{\link{makeAgent}}}
 
 \item{getAdvisorFun}{function determining which agent acts as advisor. Should
 follow format of \code{\link{getAdvisor}}}
@@ -79,6 +81,16 @@ This function is the specifier for the interactive agent-based
 NA
 }
 
+\examples{
+\dontrun{
+
+result <- evoSim(agentCount = 100, agentDegree = 1,
+    decisionCount = 10, generationCount = 100, mutationChance = 0.001)
+data <- aggregate(egoBias ~ generation, result$agents, FUN = mean)
+plot(data$generation, data$egoBias)
+}
+
+}
 \author{
 Matt Jaquiery, \email{matt.jaquiery@psy.ox.ac.uk}
 }
