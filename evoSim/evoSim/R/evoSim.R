@@ -303,14 +303,14 @@ selectParents <- function(modelParams, agents, world, ties) {
   # the others get weighted by relative fitness which are transformed to +ve values
   tmp$fitness <- tmp$fitness - min(tmp$fitness) + 1
   # scale appropriately
-  while(any(tmp$fitness < 10))
+  while (any(tmp$fitness < 10))
     tmp$fitness <- tmp$fitness * 10
   # and round off
   tmp$fitness <- round(tmp$fitness)
   tickets <- vector(length = sum(tmp$fitness)) # each success buys a ticket in the draw
   i <- 0
-  for(a in 1:nrow(tmp)) {
-    tickets[(i+1):(i+1+tmp$fitness[a])] <- a
+  for (a in 1:nrow(tmp)) {
+    tickets[(i + 1):(i + 1 + tmp$fitness[a])] <- a
     i <- i + 1 + tmp$fitness[a]
   }
   winners <- sample(tickets, modelParams$agentCount, replace = T)
@@ -326,6 +326,8 @@ selectParents <- function(modelParams, agents, world, ties) {
 #' @param decisionCount number of decisions made each generation
 #' @param generationCount number of generations (duration of model)
 #' @param mutationChance probability of a mutation occuring
+#' @param genZero data frame of agents to be used as the starting generation. If
+#'   this is NULL the first generation is created using the makeAgentsFun
 #' @param learnRate scaling factor for updating connection weights
 #' @param other list used for passing other arguments to custom functions.
 #'   Accessed by \code{modelParams$other}
@@ -376,6 +378,7 @@ evoSim <- function(agentCount,
                    decisionCount,
                    generationCount,
                    mutationChance,
+                   genZero = NULL,
                    learnRate = 0.00,
                    other = NULL,
                    makeAgentsFun = NULL,
@@ -413,6 +416,7 @@ evoSim <- function(agentCount,
                       recordDecisions = recordDecisions)
 
   n <- modelParams$agentCount * modelParams$generationCount
+  
   agents <- data.frame(id = 1:n,
                        genId = rep(1:modelParams$agentCount, modelParams$generationCount),
                        generation = rep(1:modelParams$generationCount, each = modelParams$agentCount),
@@ -423,8 +427,39 @@ evoSim <- function(agentCount,
                        advice = rep(NA, n),
                        finalDecision = rep(NA, n))
 
+  tStart <- Sys.time()
+
+  # overwrite generation by spawning from genZero if necessary
+  # N.B. the ties are regenerated, so this will need rewriting if ties are 
+  # important to remember over cycle breaks
+  if (!is.null(genZero)) {
+    lastGen <- max(genZero$generation)
+    parents <- modelParams$selectParents(modelParams, genZero,
+                                         list(generation = lastGen,
+                                              decision = 0),
+                                         NULL)
+    
+    tmp <- modelParams$makeAgents(modelParams, genZero, parents = parents)
+    
+    # Update the generation values for compatability
+    agents$generation <- rep((lastGen + 1):(lastGen + modelParams$generationCount),
+                             each = modelParams$agentCount)
+  } else {
+    tmp <- modelParams$makeAgents(modelParams)
+  }
+  
+  tmp$agents$fitness <- 0
+  
+  # ensure all column names appear in both hardcoded and user-supplied data frames
+  agents[, names(tmp$agents)[which(!(names(tmp$agents) %in% names(agents)))]] <- NA
+
+  # fill in the initial generation data in the correct columns
+  agents[agents$generation == min(agents$generation), names(agents) %in% names(tmp$agents)] <-
+    tmp$agents[,names(tmp$agents)[order(match(names(tmp$agents), names(agents)))]]
+  ties <- tmp$ties
+  
   n <- n * modelParams$decisionCount
-  if(recordDecisions)
+  if (recordDecisions)
     decisions <- data.frame(id = rep(agents$id, each = modelParams$decisionCount),
                             genId = rep(agents$genId, each = modelParams$decisionCount),
                             generation = rep(agents$generation, each = modelParams$decisionCount),
@@ -436,22 +471,13 @@ evoSim <- function(agentCount,
                             advisor = rep(NA, n),
                             advice = rep(NA, n),
                             finalDecision = rep(NA, n))
-
-  tStart <- Sys.time()
-  tmp <- modelParams$makeAgents(modelParams)
-  tmp$agents$fitness <- 0
-  # ensure all column names appear in both hardcoded and user-supplied data frames
-  agents[, names(tmp$agents)[which(!(names(tmp$agents) %in% names(agents)))]] <- NA
-
-  # fill in the initial generation data in the correct columns
-  agents[agents$generation==1, names(agents) %in% names(tmp$agents)] <-
-    tmp$agents[,names(tmp$agents)[order(match(names(tmp$agents), names(agents)))]]
-  ties <- tmp$ties
-
-  for(g in 1:modelParams$generationCount) {
+  
+  genStart <- min(agents$generation)
+  
+  for (g in genStart:max(agents$generation)) {
     # Make decisions
-    mask <- which(agents$generation==g)
-    for(d in 1:modelParams$decisionCount) {
+    mask <- which(agents$generation == g)
+    for (d in 1:modelParams$decisionCount) {
       # Correct answer (same for all agents)
       world <- list(generation = g, decision = d)
       world$state <- modelParams$getWorldState(modelParams, world)
@@ -466,20 +492,20 @@ evoSim <- function(agentCount,
       # Update connections
       ties <- modelParams$updateConnections(modelParams, agents, world, ties)
       # Record decision
-      if(recordDecisions)
+      if (recordDecisions & (g %% recordDecisions == 0))
         decisions[decisions$generation == g & decisions$decision == d,
                   c('id', 'genId', 'generation', 'fitness', 'egoBias',
                     'initialDecision', 'advisor', 'advice', 'finalDecision')] <-
           agents[mask, c('id', 'genId', 'generation', 'fitness', 'egoBias',
                          'initialDecision', 'advisor', 'advice', 'finalDecision')]
     }
-    if(g==modelParams$generationCount)
+    if (g == modelParams$generationCount)
       next()
     # Evolve
     parents <- modelParams$selectParents(modelParams, agents, world, ties)
     tmp <- modelParams$makeAgents(modelParams, agents[agents$generation == g, ], parents)
     # combine new generation into full data frame while allowing for mismatched column orders
-    agents[agents$generation==g+1, names(agents) %in% names(tmp$agents)] <-
+    agents[agents$generation == g + 1, names(agents) %in% names(tmp$agents)] <-
       tmp$agents[,names(tmp$agents)[order(match(names(tmp$agents), names(agents)))]]
     ties <- tmp$ties
   }
@@ -487,12 +513,16 @@ evoSim <- function(agentCount,
   tEnd <- Sys.time()
   tElapsed <- as.numeric(format(tEnd,"%s")) - as.numeric(format(tStart,"%s"))
   # Return an output containing inputs and the agents data frame
-  modelData <- list(model = modelParams,
-                    # to avoid duplicating info we reduce agents dataframe to remove columns about decisions
-                    agents = agents[,-which(names(agents) %in%
-                                              c('initialDecision', 'advisor', 'advice', 'finalDecsision'))],
-                    duration = tElapsed)
-  if(recordDecisions)
-    modelData <- c(modelData, list(decisions = decisions))
+  
+  if (recordDecisions) {
+    modelData <- list(model = modelParams,
+                      # to avoid duplicating info we reduce agents dataframe to remove columns about decisions
+                      agents = agents[,-which(names(agents) %in%
+                                                c('initialDecision', 'advisor', 'advice', 'finalDecsision'))],
+                      decisions = decisions,
+                      duration = tElapsed)
+  } else {
+    modelData <- list(model = modelParams, agents = agents, duration = tElapsed)
+  }
   return(modelData)
 }

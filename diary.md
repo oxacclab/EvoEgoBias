@@ -49,3 +49,26 @@ Decisionmaking in humans seems to be more driven by a bimodal choose-self or ave
 
 The model should be run on the more basic manipulations to begin with.
 
+## 25/02/2019
+
+Using the choose-self-or-average strategy under the basic manipulations of advice noise and bad advice, the agents show an extreme sensitivity to the parameter values. Whether they remain stable at any parameter value with an outcome between 0 and 1, or whether only 0 and 1 are stable points at all parameter values. There's potentially a saddle effect where parameter values below some critical number tend eventually to stability at 0, and parameter values above it tend eventually to stability at 1.
+
+Note that 0 and 1 refer to probabilities of choosing self rather than averaging, not to the resultant mean advice-weight. Because simple averaging always occurs where the probability is 0, the own-advice-weight ranges from .5 to 1 for these models.
+
+![Noisy advice](results/2019-02-21_23-50-17_d1-a2_graph.png "Note the remarkable sensitivity to parameter values")
+
+![Bad advice](results/2019-02-23_15-15-17_Uncapped_bad-advice_graph.png "An even closer examination of the potential saddle point.")
+
+## 01/02/2019
+
+Futher exploration in model 19 demonstrates that the relationship is not as clear as previously thought. Over 3000 generations it is plausible that the stability-at-extremes effect emerges, but simulation over more generations is required. 
+
+![Weighted-average strategy](results/2019-03-01_01-57-22_Weighted-Average-with bad advice_graph.png "The existence of a fairly stable mid-point solution seems to be detectable at .98 weighting")
+
+![Pick-or-average strategy](results/2019-03-01_05-55-08_Pick-or-Average-with bad advice_graph.png "Plausibly even the most midrange value (.98) is tending towards a stable extreme value.")
+
+For computational reasons this needs to be broken up into multiple rounds. Each generation acts as a save point for the models, so they can be resumed from previous saves without compromise. The core package needs to be updated to handle taking an existing dataframe as input. 
+
+## 04/03/2019
+
+A **critical** mistake in Model 20 means previous result all used the pick-or-average strategy. The models must be rerun now that Model 20 has been fixed to use the correct weighted-average function where applicable. 
