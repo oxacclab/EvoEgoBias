@@ -1,0 +1,130 @@
+---
+title: "Model 22 analysis"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r prematter, echo=F, include=F}
+knitr::opts_chunk$set(echo = F)
+library(tidyverse)
+```
+
+# Introduction
+
+Analysis of human data from advice-taking tasks suggests that people have a dichotomous approach to advice-taking: either they use advice, or they do not. This approach is not well modelled in our evolutionary simulations which use a weighted average.
+
+Below, various candidate models are analysed for stability and appropriateness: 
+
+* **Weighted average**
+
+  * evolved parameter: $\text{self weight}$
+
+  * this is the reference model, matched by most analyses in the literature
+  
+* **Pick or average**
+
+  * evolved parameter: $P(\text{pick self})$
+  
+* **Pick or weighted average**
+
+  * evolved parameters: $\text{self weight}$ and $P(\text{pick self})$
+  
+* **Pick or weighted average (linked)**
+
+  * single evolved parameter controls both $\text{self weight}$ and $P(\text{pick self})$
+  
+# Method
+
+Simulations were run under three different advice corruption scenarios with the corruption level at various different strengths. The scenarios a **bad advice**, in which there is a a probability the advice given will be deliberately unhelpful; **noisy communication**, in which noise is added to the advice before it is received; and **noisy advice**, in which the advice is drawn from a less precise distribution than the initial decision. 
+
+Models were run for 1000 generations, with data extracted every 10 generations.
+
+# Results
+
+Results are collated into a single massive data frame. Data have the structure:
+
+```{r data}
+
+d <- NULL
+
+for (f in list.files("./results", full.names = T)) {
+  if (!length(grep("2019-04-30_[^.]+rawdata.Rdata", f)))
+    next()
+  
+  load(f)
+  
+  for (i in 1:length(rawdata)) {
+    tmp <- as.tibble(rawdata[[i]]$agents)
+    
+    desc <- strsplit(rawdata[[i]]$model$other$shortDesc, " with ")
+    tmp$model <- desc[[1]][1]
+    tmp$scenario <- desc[[1]][2]
+    
+    tmp$corruption <- rawdata[[i]]$model$other$adviceNoise[
+      rawdata[[i]]$model$other$manipulation]
+    
+    d <- rbind(d, tmp)
+  }
+  
+}
+
+d$corruption <- factor(d$corruption)
+d$model <- factor(d$model)
+
+head(d)
+
+# prepare for ggplotting
+d <- gather(d, "variable", "value", c("pPickSelf", "selfWeight"))
+
+```
+
+All scenarios produced similar results, so only **noisy advice** is presented here:
+
+```{r graph, fig.width=14}
+
+ggplot(d, aes(x = generation, y = value, fill = corruption)) +
+  stat_summary(geom = 'ribbon', fun.data = mean_cl_normal, 
+                   fun.args = (conf.int = .99), alpha = 1, linetype = 0) + 
+  facet_grid(variable ~ model) +
+  theme_light() +
+  theme(legend.position = 'top',
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor = element_blank())
+
+```
+*ribbon plot showing evolution of parameters $P(\text{pick self})$ (top) and $\text{self weight}$ (bottom) for each model under consideration. Ribbon widths give 99% CIs for the mean population value for a variable in a given generation. Colours show different levels of advice noise (corruption)*
+
+[full size image](./figures/noisy-advice.png)
+
+# Observations
+
+The **weighted average** model's $\text{self weight}$ parameter shows clearly stratified response to noise, with greater levels of advice noise producing greater weight on initial decisions vs advice estimates. The $P(\text{pick self})$ parameter has relatively wide confidence intervals and no particular pattern to the evolution, as is expected given that this parameter is not used in the fitness function for the model.
+
+The **pick or average** model shows the opposite pattern, with the $P(\text{pick self})$ parameter responsive to the corruption level and the $\text{self weight}$ parameter exhibiting random behaviour. Notably, the **pick or average** model's $P(\text{pick self})$ parameter shows extreme sensitivity to the manipulation: most values produce a strong pressure to the extreme cases of *always* or *never* using advice, while those in the middle show a high level of variation (wide ribbons), suggesting weak evolutionary pressure towards any particular value. This pattern emerges because the model presents a cross-section of Soll and Mannes' (2011) PAR model of advice in which averaging advice either is or is not superior to simply maintaining one's initial decision, and the evolutionary models maximize for whichever of these strategies has the advantage. 
+
+The first candidate model for replacing the **weighted average** model is the **pick or weighted average** model, which supports evolution of both parameters. This model appears to be dominated by the behaviour of the $\text{self weight}$ parameter, with the $P(\text{pick self})$ parameter showing greater variability within a generation, less stability across generations, and a tendency in some models to seek 0 (where the $\text{self weight}$ parameter becomes entirely responsible for fitness because advice is always used). 
+
+This latter pattern requires looking at the other scenarios:
+
+```{r powaGraphs}
+
+ggplot(d[d$model == "Pick-or-Weighted-Average", ], 
+       aes(x = generation, y = value, fill = corruption)) + 
+  stat_summary(geom = 'ribbon', fun.data = mean_cl_normal, 
+                   fun.args = (conf.int = .99), alpha = 1, linetype = 0) + 
+  facet_grid(variable ~ scenario) +
+  theme_light() +
+  theme(legend.position = 'top',
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor = element_blank())
+
+```
+
+[full size image](./figures/pick-or-weighted-average.png)
+
+The **linked** model attempted to rectify this trade-off problem while still allowing for some modelling of the dichotomous advice-usage behaviour. It exhibited similar stability and discrimination to the **weighted average** model, with its values adjusted downwards slightly to accommodate the double-effect of the parameter. 
+
+# Conclusions
+
+The **linked** model may be an appropriate choice for modelling the effects of information environments on normative advice-taking behaviour. That said, it is unlikely that the linked model represents any actual feature of normal human advice weighting (while people do seem to either use or ignore advice, they are unlikely to apply a single probability to both the usage and the weight placed on used advice). 

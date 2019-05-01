@@ -72,3 +72,19 @@ For computational reasons this needs to be broken up into multiple rounds. Each 
 ## 04/03/2019
 
 A **critical** mistake in Model 20 means previous result all used the pick-or-average strategy. The models must be rerun now that Model 20 has been fixed to use the correct weighted-average function where applicable. 
+
+Nick mentioned that the bad advice was catestrophically bad, and that less terrible advice would be better. Also, more decisions/generation may lead to a more even distribution of exposure to bad advice. Consequently, in Model 21:  
+* bad advice will be changed to be initial estimate + 3SD using the advisor's sensitivity SD.   
+* Decisions/generation will be doubled to 60.   
+* Initially the models will be run for a few generations to find the sensitive badAdviceProb values.
+
+The results are pretty surprising: there really does seem to be a split in stability between the weighted-average and pick-or-average models.
+
+![Weighted-average strategy](results/2019-03-05_02-09-39_Weighted-Average-with bad advice_graph.png "Across a range of values which increasingly favour discounting there attractors move in a stable manner.")
+
+![Pick-or-average strategy](results/2019-03-05_00-03-10_Pick-or-Average-with bad advice_graph.png "Strategies converge fast to 1 or 0 rather than midrange values.")
+
+## 18/03/2019
+
+It's plausible from the various human datasets that the human strategy is not simply pick-or-average, but is instead a pick-or-weighted-average/something-else. So this can be modelled simply by allowing a model to include parameters for both the p(pick vs average) and the weighting of the average. 
+
