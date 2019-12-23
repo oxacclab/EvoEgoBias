@@ -161,7 +161,9 @@ runModel <- function(spec) {
     
     # Slim down the results if required
     if (!is.null(spec$saveEveryNthGeneration)) 
-      data$agents <- data$agents[data$agents$generation %% 
+      data$agents <- data$agents[data$agents$generation < 
+                                   spec$saveEveryNthGeneration |
+                                   data$agents$generation %% 
                                    spec$saveEveryNthGeneration == 0, ]
 
     # Save temporary results
@@ -362,7 +364,7 @@ badAdviceFun <- function(modelParams, agents, world, ties) {
   return(agents)
 }
 
-for (decisionType in 4:1) {
+for (decisionType in rep(2, 50)) {
   for (adviceType in 1:3) {
     # Storage path for results
     resultsPath <- ifelse(ARC,'results/','results/')
@@ -375,15 +377,15 @@ for (decisionType in 4:1) {
     specs <- list()
     for (s in 1)
       for (x in 1:7)
-        specs[[length(specs) + 1]] <- list(agents = 750, degree = 10,
-                                           generations = 1000,
+        specs[[length(specs) + 1]] <- list(agents = 1000, degree = 10,
+                                           generations = 100,
                                            decisions = 60,
                                            sensitivity = s, sensitivitySD = s,
-                                           startingpPickSelf = .45, # .45 is neither optimal nor extreme
+                                           startingpPickSelf = .5, # .45 is neither optimal nor extreme
                                            adviceNoise = seq(0,2,.3),
                                            manipulation = x,
                                            wd = getwd(),
-                                           saveEveryNthGeneration = 50,
+                                           saveEveryNthGeneration = 1,
                                            maxGenerations = 1500)
     
     if (decisionType == 1) {
