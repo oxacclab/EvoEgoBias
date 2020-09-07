@@ -1,4 +1,6 @@
-# Model 18 ####
+# Model 22 ####
+
+#' Small model to check everything still runs okay with R version 4
 
 #' Here we allow sensitivity to evolve (up to a maximum (in)sensitivity of .1).
 #' We expect this senstivity evolution to initially suppress egocentric bias,
@@ -301,14 +303,14 @@ for (decisionType in c(1, 2)) {
     for (s in 1)
       for (x in 1:11)
         specs[[length(specs) + 1]] <- list(agents = 750, degree = 10,
-                                           generations = 1000,
+                                           generations = 100,
                                            decisions = 60,
                                            sensitivity = s, sensitivitySD = s,
                                            startingEgoBias = .45, # .45 is neither optimal nor extreme
                                            adviceNoise = seq(0,2,.2),
                                            manipulation = x,
                                            wd = getwd(),
-                                           saveEveryNthGeneration = 50,
+                                           saveEveryNthGeneration = 5,
                                            maxGenerations = 1500)
     
     if (decisionType == 1) {

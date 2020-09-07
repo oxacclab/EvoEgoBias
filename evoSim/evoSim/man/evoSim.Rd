@@ -3,15 +3,28 @@
 \docType{package}
 \name{evoSim}
 \alias{evoSim}
-\alias{evoSim-package}
 \title{evolutionary models of interacting agents}
 \usage{
-evoSim(agentCount, agentDegree, decisionCount, generationCount,
-  mutationChance, learnRate = 0, other = NULL, makeAgentsFun = NULL,
-  connectAgentsFun = NULL, initialConnectionStrengthFun = NULL,
-  getWorldStateFun = NULL, getDecisionFun = NULL,
-  getAdviceFun = NULL, updateConnectionsFun = NULL,
-  getFitnessFun = NULL, selectParentsFun = NULL, recordDecisions = F)
+evoSim(
+  agentCount,
+  agentDegree,
+  decisionCount,
+  generationCount,
+  mutationChance,
+  genZero = NULL,
+  learnRate = 0,
+  other = NULL,
+  makeAgentsFun = NULL,
+  connectAgentsFun = NULL,
+  initialConnectionStrengthFun = NULL,
+  getWorldStateFun = NULL,
+  getDecisionFun = NULL,
+  getAdviceFun = NULL,
+  updateConnectionsFun = NULL,
+  getFitnessFun = NULL,
+  selectParentsFun = NULL,
+  recordDecisions = F
+)
 }
 \arguments{
 \item{agentCount}{number of agents in each generation}
@@ -23,6 +36,9 @@ evoSim(agentCount, agentDegree, decisionCount, generationCount,
 \item{generationCount}{number of generations (duration of model)}
 
 \item{mutationChance}{probability of a mutation occuring}
+
+\item{genZero}{data frame of agents to be used as the starting generation. If
+this is NULL the first generation is created using the makeAgentsFun}
 
 \item{learnRate}{scaling factor for updating connection weights}
 
@@ -53,10 +69,6 @@ generation. Should follow format of \code{\link{selectParents}}}
 
 \item{recordDecisions}{Whether to return a dataframe containing the decisions
 in the model results}
-
-\item{makeAgentFun}{function for producing an individual agent. Typically
-called from \code{makeAgents}. Should follow format of
-\code{\link{makeAgent}}}
 
 \item{getAdvisorFun}{function determining which agent acts as advisor. Should
 follow format of \code{\link{getAdvisor}}}

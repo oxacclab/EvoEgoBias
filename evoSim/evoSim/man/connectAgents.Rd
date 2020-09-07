@@ -8,7 +8,12 @@ between each sender (cols) and receiver (rows) pair of \code{agents}}
 connectAgents(modelParams, agents, parents, oldTies)
 }
 \arguments{
+\item{modelParams}{parameters for the model as a named list}
+
 \item{agents}{data.frame of agents to be connected}
+
+\item{parents}{list of vectors containing indices of previousGeneration
+containing the parents to be used to produce each new agent.}
 
 \item{oldTies}{the previous connectivity matrix used by parents}
 }

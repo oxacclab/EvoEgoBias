@@ -66,7 +66,7 @@ initalConnectionStrength <- function(receiver, sender) {
 #' Return a connectivity matrix containing the connection strengths of the links
 #' between each sender (cols) and receiver (rows) pair of \code{agents}
 #'
-#' @inheritParams makeAgent
+#' @inheritParams makeAgents
 #' @param agents data.frame of agents to be connected
 #' @param oldTies the previous connectivity matrix used by parents
 #'
@@ -333,9 +333,6 @@ selectParents <- function(modelParams, agents, world, ties) {
 #'   Accessed by \code{modelParams$other}
 #' @param makeAgentsFun function for producing agents. Should follow format of
 #'   \code{\link{makeAgents}}
-#' @param makeAgentFun function for producing an individual agent. Typically
-#'   called from \code{makeAgents}. Should follow format of
-#'   \code{\link{makeAgent}}
 #' @param connectAgentsFun function for connecting agents. Should follow format
 #'   of \code{\link{connectAgents}}
 #' @param initialConnectionStrengthFun function for determining the initial
@@ -416,7 +413,7 @@ evoSim <- function(agentCount,
                       recordDecisions = recordDecisions)
 
   n <- modelParams$agentCount * modelParams$generationCount
-  
+
   agents <- data.frame(id = 1:n,
                        genId = rep(1:modelParams$agentCount, modelParams$generationCount),
                        generation = rep(1:modelParams$generationCount, each = modelParams$agentCount),
@@ -430,7 +427,7 @@ evoSim <- function(agentCount,
   tStart <- Sys.time()
 
   # overwrite generation by spawning from genZero if necessary
-  # N.B. the ties are regenerated, so this will need rewriting if ties are 
+  # N.B. the ties are regenerated, so this will need rewriting if ties are
   # important to remember over cycle breaks
   if (!is.null(genZero)) {
     lastGen <- max(genZero$generation)
@@ -438,18 +435,18 @@ evoSim <- function(agentCount,
                                          list(generation = lastGen,
                                               decision = 0),
                                          NULL)
-    
+
     tmp <- modelParams$makeAgents(modelParams, genZero, parents = parents)
-    
+
     # Update the generation values for compatability
     agents$generation <- rep((lastGen + 1):(lastGen + modelParams$generationCount),
                              each = modelParams$agentCount)
   } else {
     tmp <- modelParams$makeAgents(modelParams)
   }
-  
+
   tmp$agents$fitness <- 0
-  
+
   # ensure all column names appear in both hardcoded and user-supplied data frames
   agents[, names(tmp$agents)[which(!(names(tmp$agents) %in% names(agents)))]] <- NA
 
@@ -457,7 +454,7 @@ evoSim <- function(agentCount,
   agents[agents$generation == min(agents$generation), names(agents) %in% names(tmp$agents)] <-
     tmp$agents[,names(tmp$agents)[order(match(names(tmp$agents), names(agents)))]]
   ties <- tmp$ties
-  
+
   n <- n * modelParams$decisionCount
   if (recordDecisions)
     decisions <- data.frame(id = rep(agents$id, each = modelParams$decisionCount),
@@ -471,9 +468,9 @@ evoSim <- function(agentCount,
                             advisor = rep(NA, n),
                             advice = rep(NA, n),
                             finalDecision = rep(NA, n))
-  
+
   genStart <- min(agents$generation)
-  
+
   for (g in genStart:max(agents$generation)) {
     # Make decisions
     mask <- which(agents$generation == g)
@@ -513,12 +510,12 @@ evoSim <- function(agentCount,
   tEnd <- Sys.time()
   tElapsed <- as.numeric(format(tEnd,"%s")) - as.numeric(format(tStart,"%s"))
   # Return an output containing inputs and the agents data frame
-  
+
   if (recordDecisions) {
     modelData <- list(model = modelParams,
                       # to avoid duplicating info we reduce agents dataframe to remove columns about decisions
                       agents = agents[,-which(names(agents) %in%
-                                                c('initialDecision', 'advisor', 'advice', 'finalDecsision'))],
+                                                c('initialDecision', 'advisor', 'advice', 'finalDecision'))],
                       decisions = decisions,
                       duration = tElapsed)
   } else {
