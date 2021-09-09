@@ -68,3 +68,13 @@ Extensions:
     * Agents may give advice on decisions they do not face (or give different advice to their decision for themselves), and may put in less effort (perform more poorly) when they do so.
 * Objective feedback
     * On some/all decisions
+    
+## Thesis work
+
+For those readers wishing to reproduce work in the DPhil thesis [Exploring Social Metacognition](https://github.com/mjaquiery/oxforddown), you can do so following the steps below.
+Please be aware that the thesis code runs a very large number of models, and will take several tens of hours of processing and around 15GB of storage to run.
+Reducing the `runCount` variable at the top of the script will allow the principles to be demonstrated more quickly.
+
+1. Run the code in `thesis.R` to create the raw data.  
+2. Run the code in `thesis_reduce.R` to boil this data down to just the dataframes that are archived online and that are loaded by the thesis.
+3. The resulting `thesis.Rdata` file can be loaded by the script in the thesis to produce the overall averaged graph.
