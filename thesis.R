@@ -303,8 +303,7 @@ confidenceAdviceFun <- function(modelParams, agents, world, ties) {
   return(agents)
 }
 for (r in 1:runCount) {
-  # FIX
-  for (adviceType in 3) {
+  for (adviceType in 3:1) {
     # Storage path for results
     resultsPath <- ifelse(ARC,'results/','results/')
     time <- format(Sys.time(), "%F_%H-%M-%S")
