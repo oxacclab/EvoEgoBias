@@ -1,5 +1,9 @@
 # EvoEgoBias
 
+<!-- badges: start -->
+[![DOI](https://zenodo.org/badge/132620633.svg)](https://zenodo.org/badge/latestdoi/132620633)
+<!-- badges: end -->
+
 Evolutionary models exploring when egocentric discounting is sensible.
 
 ## Egocentric discounting

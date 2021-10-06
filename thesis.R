@@ -141,6 +141,7 @@ runModel <- function(spec) {
         # the others get weighted by relative fitness which are transformed to +ve values
         tmp$fitness <- tmp$fitness - min(tmp$fitness) + 1
         # scale appropriately
+        # NOTE: this scaling doesn't actually do anything - the normalisation in sample undoes it!
         while (any(abs(tmp$fitness) < 10))
           tmp$fitness <- tmp$fitness * 10
         # and round off
